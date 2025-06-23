@@ -21,7 +21,7 @@ class App():
         
         Onde o nó líder gera um número aleátorio i e envia para todos
         os outros nós, os nós que recebm o i devem responde o processo líder 
-        com i*i*process_id
+        com i*i*process_id!
         """
         
         pass
