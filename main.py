@@ -2,21 +2,21 @@
 """
 
 import logging
+
 from time import sleep
-from random import random
+from random import randint
 
 from config.logger_config import setup_logger
-import middleware
+from middleware import Node
 
+logger = logging.getLogger(__name__)
 
-class App():
-    def __init__(self, second: float):
-        # self._process_id
-        self._leader: bool = False
-        self._second: float = second
+class App(Node.Node):
+    def __init__(self, seconds: int = 1):
+        super().__init__(seconds)
         
-    def program(self):
-        """_summary_
+    def leader_task(self):
+        """
         Código executado em loop na aplicação
         
         Onde o nó líder gera um número aleátorio i e envia para todos
@@ -26,16 +26,16 @@ class App():
         
         pass
 
-
-
-
 def main() -> None:
-    """Setup all configs and init App
+    """
+    Inicia todas as configurações do sistema
     """
     
     # Setup logging system
     setup_logger()
+    
 
+    app = App()
 
 if __name__ == "__main__":
     main()
