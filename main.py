@@ -22,6 +22,8 @@ class App(Node.Node):
         Onde o nó líder gera um número aleátorio i e envia para todos
         os outros nós, os nós que recebm o i devem responde o processo líder 
         com i*i*process_id
+        
+        O sistema realiza o consenso de que possui o maior valor 
         """
         
         pass
