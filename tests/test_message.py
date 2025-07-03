@@ -179,7 +179,8 @@ class TestMessageCommunication(unittest.TestCase):
             ) 
             
             cont += 1
-            
+            print(cont, res[0])
+        
         self.assertEqual(
             first=cont,
             second=5

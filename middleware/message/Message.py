@@ -13,10 +13,11 @@ import socket
 import struct
 import json 
 import logging
+import time
 
 from typing import Callable
 
-from middleware.message.MessageEnum import MessageEnum
+from .MessageEnum import MessageEnum
 
 logger = logging.getLogger(__name__)
 
@@ -192,5 +193,3 @@ class Message():
             
             f(data)
         
-
-    
