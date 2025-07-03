@@ -2,6 +2,7 @@
 """
 
 import logging
+import argparse
 
 from time import sleep
 from random import randint
@@ -12,10 +13,11 @@ from middleware import Node
 logger = logging.getLogger(__name__)
 
 class App(Node.Node):
-    def __init__(self, seconds: int = 1):
-        super().__init__(seconds)
+    def __init__(self, process_id: int, seconds: int = 1):
+        super().__init__(process_id=process_id, seconds=seconds)
         
-    def leader_task(self):
+        
+    def leader_task(self) -> None:
         """
         Código executado em loop na aplicação
         
@@ -27,8 +29,11 @@ class App(Node.Node):
         """
         
         pass
+    
+    def main(self) -> None:
+        self.init_node(leader_task=self.leader_task)
 
-def main() -> None:
+def main(id: int = 1) -> None:
     """
     Inicia todas as configurações do sistema
     """
@@ -37,7 +42,13 @@ def main() -> None:
     setup_logger()
     
 
-    app = App()
+    app = App(id)
+    app.main()
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Identificador de processo para o sistema")
+    parser.add_argument("--id", type=int, help="Identificador de processo (id)", default=0)
+    
+    args = parser.parse_args()
+        
+    main(args.id)

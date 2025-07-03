@@ -1,4 +1,5 @@
 import logging
+import time
 import sys 
 
 def setup_logger():
@@ -13,7 +14,7 @@ def setup_logger():
     console_handler.setLevel(logging.DEBUG)
     console_handler.setFormatter(formatter)
     
-    file_handler = logging.FileHandler('log/app.log')
+    file_handler = logging.FileHandler(f'log/app-{int(time.time())}.log')
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
     
