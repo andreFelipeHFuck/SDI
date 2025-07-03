@@ -8,6 +8,8 @@ import time
 import logging
 import threading
 import queue
+import socket
+import json
 
 from .message.Message import Message, MessageEnum, message, handle_message
 from .Election import Election
@@ -74,29 +76,43 @@ class Node():
         return False
         
         
-    def handle_message(self, message: dict) -> None:
+    def handle_message(self, message: dict, addr=None) -> None:
         """
         Processa as mensagens recebidas
 
         Args:
             message (dict): mensagem que foi recebida pelo sistema 
+            addr (tuple): endereço do remetente (host, port)
         """
+        # Responde a descoberta de id
+        if message.get("type") == MessageEnum.WHO_IS_THERE.value and addr:
+            # Responde com o id atual via unicast para o remetente
+            response = json.dumps({"type": MessageEnum.I_AM.value, "id": self._process_id}).encode('utf-8')
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.sendto(response, addr)
+            sock.close()
+            return
         
         # Mensagens do prórpio id são ignoradas 
         if message.get("sender_id") == self._process_id:
             return
-        
         elif not self.election_message(message):
             pass
      
         
     def listen_thread(self) -> None:
-        def receive_message(m: bytes):
+        def receive_message(m: bytes, addr=None):
             message: dict = handle_message(m)
-            
-            self.handle_message(message)
-            
-        Message.recv_multicast(receive_message)
+            # Pass sender address for direct reply
+            self.handle_message(message, addr)
+        
+        # Patch: wrap the callback to accept addr
+        def wrapped_recv_multicast(f):
+            s: socket.socket = Message.create_socket_multicast()
+            while True:
+                data, addr = s.recvfrom(1024)
+                f(data, addr)
+        wrapped_recv_multicast(receive_message)
         
         
     # MAIN THREAD 
@@ -170,5 +186,3 @@ class Node():
         
         main.start()
         listen.start()
-    
-    
