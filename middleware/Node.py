@@ -35,7 +35,7 @@ class Node():
         self._is_ele_in_progress: bool = False
     
     
-        logger.info(f"✅ Servidor ID {self._process_id}, Rodada {self._round} Iniciado com Sucesso!")
+        logger.info(f"✅ Servidor ID {self._process_id}, Rodada {self._round}, Iniciado com Sucesso!")
         
         
     # LISTEN THREAD 
@@ -76,7 +76,7 @@ class Node():
         return False
         
         
-    def handle_message(self, message: dict, addr=None) -> None:
+    def handle_message(self, message: dict) -> None:
         """
         Processa as mensagens recebidas
 
@@ -84,14 +84,6 @@ class Node():
             message (dict): mensagem que foi recebida pelo sistema 
             addr (tuple): endereço do remetente (host, port)
         """
-        # Responde a descoberta de id
-        if message.get("type") == MessageEnum.WHO_IS_THERE.value and addr:
-            # Responde com o id atual via unicast para o remetente
-            response = json.dumps({"type": MessageEnum.I_AM.value, "id": self._process_id}).encode('utf-8')
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.sendto(response, addr)
-            sock.close()
-            return
         
         # Mensagens do prórpio id são ignoradas 
         if message.get("sender_id") == self._process_id:
@@ -101,19 +93,13 @@ class Node():
      
         
     def listen_thread(self) -> None:
-        def receive_message(m: bytes, addr=None):
+        def receive_message(m: bytes):
             message: dict = handle_message(m)
-            # Pass sender address for direct reply
-            self.handle_message(message, addr)
+            
+            self.handle_message(message)
         
-        # Patch: wrap the callback to accept addr
-        def wrapped_recv_multicast(f):
-            s: socket.socket = Message.create_socket_multicast()
-            while True:
-                data, addr = s.recvfrom(1024)
-                f(data, addr)
-        wrapped_recv_multicast(receive_message)
-        
+        Message.recv_multicast(receive_message)
+
         
     # MAIN THREAD 
     

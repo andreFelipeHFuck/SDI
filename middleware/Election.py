@@ -11,7 +11,6 @@ Suposições:
 
 O algoritmo utiliza as seguintes mensagens:
  
-
   MULTICAST:
   *  ELECTION: anuncia o uma eleição
   *  ANSWER: responde a mensagem ELECTION  
