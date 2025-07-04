@@ -1,5 +1,9 @@
+graphviz==0.21
 iniconfig==2.1.0
 packaging==25.0
 pluggy==1.6.0
+pydot==4.0.1
 Pygments==2.19.1
+pyparsing==3.2.3
 pytest==8.4.1
+python-statemachine==2.5.0
