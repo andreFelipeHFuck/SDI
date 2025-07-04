@@ -8,3 +8,6 @@ class MessageEnum(Enum):
     ELECTION=    3
     ANSWER=      4
     COORDINATOR= 5
+    
+    WHO_IS_THERE = 6
+    I_AM = 7

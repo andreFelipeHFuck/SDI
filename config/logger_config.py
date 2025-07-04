@@ -1,6 +1,7 @@
 import logging
 import time
 import sys 
+import os
 
 def setup_logger():
     logger = logging.getLogger()
@@ -14,6 +15,11 @@ def setup_logger():
     console_handler.setLevel(logging.DEBUG)
     console_handler.setFormatter(formatter)
     
+    # Ensure the log directory exists
+    log_dir = 'log'
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+        
     file_handler = logging.FileHandler(f'log/app-{int(time.time())}.log')
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
