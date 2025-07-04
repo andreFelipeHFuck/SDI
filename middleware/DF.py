@@ -38,7 +38,7 @@ import threading
 
 from enum import Enum
 
-from .message.Message import Message, MessageEnum, message, handle_message
+from message.Message import Message, MessageEnum, message, handle_message
 
 logger = logging.getLogger(__name__)
 
@@ -53,11 +53,12 @@ class DF():
         self._t = t
         
         self._process_id: int = process_id
-        self._processes_state: dict = {k: (time.time(), 0, DFState.SUSPECTED) for k in process_list if k != process_id}
+        self._processes_state: dict = {k: [time.time(), 0, DFState.SUSPECTED] for k in process_list if k != process_id}
         
         self._lock: threading.Lock = threading.Lock()
-        
-        self.__df_send_heartbeat_thread()
+                
+        send_heartbeat_thread: threading.Thread = threading.Thread(target=self.__df_send_heartbeat_thread)
+        send_heartbeat_thread.start()
         
         logger.info(f"✅ Detector de Falhas do Servidor ID {self._process_id} Iniciado com Sucesso" )
 
@@ -71,9 +72,13 @@ class DF():
         """
         
         with self._lock:
-            suspected_list: list[int] = filter(
-                lambda id: self._process_state[id][2].value == DFState.SUSPECTED.value,
-                self._processes_state.values()
+            suspected_list: list[int] = list(
+                map(
+                    lambda v: v[0],
+                    filter(
+                        lambda i : i[1][2].value == DFState.SUSPECTED.value,
+                        self._processes_state.items())
+                )
             )
                         
         return suspected_list
@@ -98,14 +103,14 @@ class DF():
         Caso seja maior que 3 vezes altera para SUSPECTED
         """
         
-        for p in self.__verify_processes_state.values():
+        for p in self._processes_state.values():
             now = time.time()
-            
-            if now - p[1] > self._t + self._d:
-                p[2] += 1
+                        
+            if now - p[0] > self._t + self._d:
+                p[1] += 1
                 
-            if p[2] > 3:
-                p[3] = DFState.SUSPECTED 
+            if p[1] > 3:
+                p[2] = DFState.SUSPECTED 
     
     
     def __df_send_heartbeat_thread(self) -> None:
@@ -122,11 +127,12 @@ class DF():
             
             
     def handle_df_message(self, message: dict) -> None:
-        if message["type"] == MessageEnum.HEARTBEAT.value:
+        if message["type"] == MessageEnum.HEARTBEAT.value and self._process_id != message["sender_id"]:
+            print("Mensagem recebida")
             now = time.time()
             
             with self._lock:
-                self._processes_state[message["sender_id"]][0] = (now, 0, DFState.UNSUSPECTED)
+                self._processes_state[message["sender_id"]] = [now, 0, DFState.UNSUSPECTED]
             
             
         
