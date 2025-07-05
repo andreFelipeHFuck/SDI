@@ -38,7 +38,7 @@ import threading
 
 from enum import Enum
 
-from message.Message import Message, MessageEnum, message, handle_message
+from .message.Message import Message, MessageEnum, message, handle_message
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +48,12 @@ class DFState(Enum):
 
 
 class DF():
-    def __init__(self, d: int, t: int, process_id: int, process_list: list[int]) -> None:
+    def __init__(self, d: int, t: int, process_id: int, processes_list: list[int]) -> None:
         self._d = d
         self._t = t
         
         self._process_id: int = process_id
-        self._processes_state: dict = {k: [time.time(), 0, DFState.SUSPECTED] for k in process_list if k != process_id}
+        self._processes_state: dict = {k: [time.time(), 0, DFState.SUSPECTED] for k in processes_list if k != process_id}
         
         self._lock: threading.Lock = threading.Lock()
                 

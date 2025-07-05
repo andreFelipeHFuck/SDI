@@ -1,11 +1,9 @@
-"""_summary_
+"""
+
 """
 
 import logging
 import argparse
-import socket
-import json
-import select
 from time import sleep, time
 from random import randint
 
@@ -15,12 +13,15 @@ from middleware.message.MessageEnum import MessageEnum
 
 logger = logging.getLogger(__name__)
 
-MULTICAST_GROUP = '224.1.1.1'
-MULTICAST_PORT = 5007
-
 class App(Node.Node):
-    def __init__(self, process_id: int, seconds: int = 1):
-        super().__init__(process_id=process_id, seconds=seconds)
+    def __init__(self, process_id: int, processes_id: list[int], df_d: int, df_t, election_timeout: int):
+        super().__init__(
+            process_id=process_id,
+            processes_id=processes_id,
+            df_d=df_d,
+            df_t=df_t,
+            election_timeout=election_timeout
+        )
         
         
     def leader_task(self) -> None:
