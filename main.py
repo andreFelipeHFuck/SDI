@@ -1,11 +1,9 @@
-"""_summary_
+"""
+
 """
 
 import logging
 import argparse
-import socket
-import json
-import select
 from time import sleep, time
 from random import randint
 
@@ -14,9 +12,6 @@ from middleware import Node
 from middleware.message.MessageEnum import MessageEnum
 
 logger = logging.getLogger(__name__)
-
-MULTICAST_GROUP = '224.1.1.1'
-MULTICAST_PORT = 5007
 
 class App(Node.Node):
     def __init__(self, process_id: int, seconds: int = 1):

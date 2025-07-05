@@ -46,7 +46,7 @@ O algoritmo utiliza as seguintes mensagens:
 
 import time
 import logging
-import queue
+import threading
 
 from .message.Message import Message, message, handle_message
 from .message.MessageEnum import MessageEnum
@@ -72,25 +72,41 @@ class Election(StateMachine):
         self._process_id: int = process_id
         self._leader: int = leader
         
-        
+        self._lock: threading.Lock = threading.Lock()
+
+    
     def get_process_id(self) -> int:
       return self._process_id
+    
+    # Métodos contendo metadados
         
-    def set_leader(self, leader_id: int) -> None:
+    def __set_leader(self, leader_id: int) -> None:
       logger.info(f"🗳️ Servidor ID {leader_id} ganhou a eleição")
       self._leader = leader_id
       
       
     def get_leader(self) -> int:
-      return self._leader
+      with self._lock:
+        leader: int = self._leader
+        
+      return leader
   
     
     def is_leader(self) -> bool:
-     return self._id == self._leader
+     with self._lock:
+       is_leader: bool = self._id == self._leader
+       
+     return is_leader
    
    
     def is_not_in_election(self) -> bool:
-      return self.current_state.id == "normal"
+      with self._lock:
+        is_in_election: bool = self.current_state.id == "normal"
+        
+      return not is_in_election
+    
+    
+    # Transições e Condições da Máquina de Estados 
    
     def before_start_election(self) -> None:
       """
@@ -111,6 +127,7 @@ class Election(StateMachine):
       
     def cond_has_highest_id(self, message: dict) -> bool:
       return self._process_id > message["sender_id"]
+    
     
     def before_appley(self) -> None:
       """
@@ -163,16 +180,122 @@ class Election(StateMachine):
       
       self._leader = self._process_id
       
+    # Métodos contendo uma interface para as eleições 
+    
+    def __election_process(self, processes_id: list[int], timeout: int) -> bool:
+      """
+      Realiza o processo de eleição no sistema, verifica se o n
+      
+      Args:
+          timeout (int): tempo que nó vai esperar até declarar que é o líder do sistema
+
+      Returns:
+          bool: se o processo de eilação ocorrer normalmente retorna True, caso contrário False
+      """
+      
+      try:
+        if self._process_id == max(processes_id):
+          with self._lock:
+            if self.current_state == "candidate":
+              self.send("win_election")
+            
+            else:
+              return False
+            
+        
+        else:
+          time.sleep(timeout)
+          
+          with self._lock:
+            """ 
+            Se após o timeout a máquina de estados estiver em candidate faz a transição 
+            para o estado elected
+            """
+            if self.current_state.id == "candidate":
+              self.send("win_election")
+        
+        return True
+      except:
+        return False
+      
+    
+    def start_election(self, processes_id: list[int], timeout: int) -> bool:
+      """
+      Método para iniciar uma eleição no sistema distribuído
+
+      Args:
+          timeout (int): tempo que nó vai esperar até declarar que é o líder do sistema
+          
+      Returns:
+          bool: se o processo de eilação ocorrer normalmente retorna True, caso contrário False
+      """
+      
+      try:
+         with self._lock:
+           if self.current_state.id == "normal":
+             self.send("start_election")
+             
+           else:
+             return False
+      except:
+         return False
+       
+       
+      res: bool = self.__election_process(
+         processes_id=processes_id,
+         timeout=timeout
+      )
+      
+      return res
+      
+          
+    def __message_ELECTION(self, message: bytes) -> None:
+       with self._lock:
+            if self.current_state.id == "normal":
+              self.send("appley", message)
+            
+            elif self.current_state.id == "candidate":
+              m_answer: bytes = message(
+                                message_enum=MessageEnum.ANSWER,
+                                sender_id=self._process_id,
+                                payload="ANSWER_ACK"
+                        )
+            
+              Message.send_multicast(message=m_answer)
+              
+              
+    def __message_ANSWER(self, messsage: bytes) -> None:
+      with self._lock:
+            if self.current_state.id == "candidate":
+              self.send("lost")
+              
+    
+    def __message_COORDINATOR(self, message: bytes) -> None:
+       with self._lock:
+            if self.current_state.id == "normal":
+              self.__set_leader(message["sender_id"])
 
 
-if __name__ == "__main__":  
-  ele = Election(process_id=1)
+    def handle_election_message(self, message: dict) -> None:
+      try:
+        if message["type"] == MessageEnum.ELECTION.value and self._process_id > message["sender_id"]:
+          self.__message_ELECTION(message)
+           
+              
+        # Algum nó com id maior pretende ser o coordenador 
+        elif message["type"] == MessageEnum.ANSWER.value:
+          self.__message_ANSWER(message)
+              
+              
+        elif message["type"] == MessageEnum.COORDINATOR.value:
+          self.__message_COORDINATOR(message)
+              
   
-  img_path = "readme_election.png"
-  ele._graph().write_png(img_path)
+      except:
+        pass
+
+
   
-  ele.send("start_election")
-  ele.send("win_election")
   
   
   
