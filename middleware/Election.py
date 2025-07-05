@@ -67,10 +67,14 @@ class Election(StateMachine):
     win_election = candidate.to(elected)
     
     
-    def __init__(self, process_id: int, leader: int | None = None):
+    def __init__(self, process_id: int, processes_id: list[int], leader: int | None = None, timeout: int = 5):
         super().__init__()
         self._process_id: int = process_id
+        self._processes_id: list[int] = processes_id
+        
         self._leader: int = leader
+        
+        self._timeout: int = timeout
         
         self._lock: threading.Lock = threading.Lock()
 
@@ -94,7 +98,7 @@ class Election(StateMachine):
     
     def is_leader(self) -> bool:
      with self._lock:
-       is_leader: bool = self._id == self._leader
+       is_leader: bool = self._process_id == self._leader
        
      return is_leader
    
@@ -158,12 +162,12 @@ class Election(StateMachine):
       )
       
       Message.send_multicast(message=m)
-      
+            
     
     def before_lost(self) -> None:
        logger.info(f"🤦 Servidor ID {self._process_id} perdeu a eleição")
        print(f"🤦 Servidor ID {self._process_id} perdeu a eleição")
-       
+              
     
     def before_win_election(self) -> None:
       
@@ -182,7 +186,7 @@ class Election(StateMachine):
       
     # Métodos contendo uma interface para as eleições 
     
-    def __election_process(self, processes_id: list[int], timeout: int) -> bool:
+    def __election_process(self) -> bool:
       """
       Realiza o processo de eleição no sistema, verifica se o n
       
@@ -194,7 +198,7 @@ class Election(StateMachine):
       """
       
       try:
-        if self._process_id == max(processes_id):
+        if self._process_id == max(self._processes_id):
           with self._lock:
             if self.current_state == "candidate":
               self.send("win_election")
@@ -204,7 +208,7 @@ class Election(StateMachine):
             
         
         else:
-          time.sleep(timeout)
+          time.sleep(self._timeout)
           
           with self._lock:
             """ 
@@ -219,7 +223,7 @@ class Election(StateMachine):
         return False
       
     
-    def start_election(self, processes_id: list[int], timeout: int) -> bool:
+    def start(self) -> bool:
       """
       Método para iniciar uma eleição no sistema distribuído
 
@@ -234,17 +238,13 @@ class Election(StateMachine):
          with self._lock:
            if self.current_state.id == "normal":
              self.send("start_election")
-             
-           else:
-             return False
-      except:
+           
+      except Exception as e:
+         print(f"Estado inconsistente, error: {e}")
          return False
        
        
-      res: bool = self.__election_process(
-         processes_id=processes_id,
-         timeout=timeout
-      )
+      res: bool = self.__election_process()
       
       return res
       
@@ -291,8 +291,8 @@ class Election(StateMachine):
           self.__message_COORDINATOR(message)
               
   
-      except:
-        pass
+      except Exception as e:
+        print(f"error: {e}")
 
 
   

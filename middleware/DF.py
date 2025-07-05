@@ -130,6 +130,8 @@ class DF():
         while True:
             self.__send_heartbeat()
             
+            print("Mesagem ")
+            
             self.__verify_processes_state()
             
             time.sleep(self._t)

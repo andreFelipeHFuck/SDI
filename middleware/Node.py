@@ -24,6 +24,9 @@ class Node():
                  election_timeout: int,
                  round: int = 0) -> None:
         
+        # Eliminas as falhas bizatinas
+        assert(process_id in processes_id)
+
         
         self._process_id: int = process_id
         self._processes_id: list[int] = [id for id in processes_id if id != self._process_id]
@@ -37,7 +40,11 @@ class Node():
         self._df: DF = None
         
         # Sistema de Eleição utilizando o Algoritmo do Valentão
-        self._ele: Election = Election(process_id=process_id)
+        self._ele: Election = Election(
+            process_id=process_id,
+            processes_id=processes_id,
+            timeout=election_timeout,
+        )
         
         # Threads do sistema 
         self._main_thread: threading.Thread = None        
@@ -67,6 +74,20 @@ class Node():
         
         return len(self._processes_id) - len(self._df.suspected_list())
     
+    
+    def __list_active_processes(self) -> list[int]:
+        """
+        Retorna a lista de todos os processos ativos no momento
+
+        Returns:
+            list[int]: lista de processos que estão ativos 
+        """
+        
+        if self._df == None:
+            raise Exception("Detctor de falhas não foi iniciado")
+        
+        return list(set(self._processes_id).difference(set(self._df.suspected_list())))
+        
     
     def __leader_is_active(self) -> bool:
         """
@@ -129,6 +150,7 @@ class Node():
             return
         
         self._df.handle_df_message(message)
+        self._ele.handle_election_message(message)
      
         
     def __listen_thread(self) -> None:
@@ -144,9 +166,26 @@ class Node():
     
     def __main_node_loop_thread(self, leader_task) -> None:        
         while True:
+            
+            # Só inicia a tarefa se houver mais de um nó conectado a rede
+            try:
+                if self.__num_active_processes() >= 1:
+                    if not self.__leader_is_active():                        
+                        res = self._ele.start()
+                        
+                    else:
+                        print(f"Nó {self._ele.get_leader()} é o atual líder")
+                    
+            except Exception as e:
+                print(f"error: {e}")
+                logger.warning(f"⚠️ Detctor de falhas não foi iniciado, não é possível iniciar a tarefa do nó")
+                
+                
+            
+            
             print(f"Nó {self._process_id} está conectado a {self.__num_active_processes()} outros nós")
             
-            time.sleep(5)
+            time.sleep(2)
             
                 
     # Métodos para o APP
@@ -178,7 +217,6 @@ class Node():
 if __name__ == "__main__":
     import argparse
     
-    
     processes_id: list[int] = [1, 2, 3, 4, 5]
     d: int = 5
     t: int = 2
@@ -194,7 +232,7 @@ if __name__ == "__main__":
         processes_id=processes_id,
         df_d=d,
         df_t=t,
-        election_timeout=0
+        election_timeout=5
     )
     
     node.init_node(None)
