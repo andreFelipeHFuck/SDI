@@ -38,7 +38,7 @@ import threading
 
 from enum import Enum
 
-from .message.Message import Message, MessageEnum, message, handle_message
+from message.Message import Message, MessageEnum, message, handle_message
 
 logger = logging.getLogger(__name__)
 
@@ -56,12 +56,21 @@ class DF():
         self._processes_state: dict = {k: [time.time(), 0, DFState.SUSPECTED] for k in processes_list if k != process_id}
         
         self._lock: threading.Lock = threading.Lock()
-                
-        send_heartbeat_thread: threading.Thread = threading.Thread(target=self.__df_send_heartbeat_thread)
-        send_heartbeat_thread.start()
+        
+        self._send_heartbeat_thread: threading.Thread     
+        self._stop_event = threading.Event()
+        
+        self._send_heartbeat_thread: threading.Thread = threading.Thread(target=self.__df_send_heartbeat_thread)
+        
+        self._send_heartbeat_thread.start()
         
         logger.info(f"✅ Detector de Falhas do Servidor ID {self._process_id} Iniciado com Sucesso" )
 
+    
+    def __stop(self) -> None:
+        self._stop_event.set()
+        self._send_heartbeat_thread.join(timeout=0.1)
+        print("Thread send hearbeat parada")
     
     def suspected_list(self) -> list[int]:
         """

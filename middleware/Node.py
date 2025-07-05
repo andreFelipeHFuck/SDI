@@ -7,10 +7,11 @@
 import logging
 import threading
 import queue
+import time
 
-from .message.Message import Message, MessageEnum, message, handle_message
-from .DF import DF
-from .Election import Election
+from message.Message import Message, MessageEnum, message, handle_message
+from DF import DF
+from Election import Election
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,12 @@ class Node():
         
         # Sistema de Eleição utilizando o Algoritmo do Valentão
         self._ele: Election = Election(process_id=process_id)
+        
+        # Threads do sistema 
+        self._main_thread: threading.Thread = None        
+        self._listen_thread: threading.Thread = None
+        
+        self._stop_event: threading.Event = threading.Event()
         
         # Fila de mensagens entre listen_thread e thread Node padrão
         self._message_queue: queue.Queue = queue.Queue()
@@ -85,7 +92,26 @@ class Node():
         
         return True
         
+    
+    # Thread métodos
+    
+    def __main_thread_start(self) -> None:
+        self._main_thread.start() 
         
+        
+    def __listen_thread_start(self) -> None:
+        self._listen_thread.start()
+        
+    def __stop(self) -> None:
+        if self._df != None:
+            self._df._DF__stop()
+        
+        self._stop_event.set()
+        self._main_thread.join(timeout=0.1)
+        print("Thread main parada")
+        
+        self._listen_thread.join(timeout=0.1)
+        print("Thread listen parada")
         
     # LISTEN THREAD 
         
@@ -116,10 +142,12 @@ class Node():
         
     # MAIN THREAD 
     
-    def __main_node_loop_thread(self, leader_task, timeout: int) -> None:        
+    def __main_node_loop_thread(self, leader_task) -> None:        
         while True:
+            print(f"Nó {self._process_id} está conectado a {self.__num_active_processes()} outros nós")
             
-            pass
+            time.sleep(5)
+            
                 
     # Métodos para o APP
 
@@ -132,11 +160,11 @@ class Node():
             processes_list=self._processes_id
         )
         
-        main: threading.Thread = threading.Thread(target=self.__main_node_loop_thread, args=(leader_task, 15))
-        listen: threading.Thread = threading.Thread(target=self.__listen_thread)
+        self._main_thread = threading.Thread(target=self.__main_node_loop_thread, args=(leader_task,))
+        self._listen_thread = threading.Thread(target=self.__listen_thread)
         
-        main.start()
-        listen.start()
+        self.__main_thread_start()
+        self.__listen_thread_start()
 
 
     def node_is_leader(self) -> bool:
@@ -145,3 +173,28 @@ class Node():
     
     def consensus(self) -> int:
         pass
+
+
+if __name__ == "__main__":
+    import argparse
+    
+    
+    processes_id: list[int] = [1, 2, 3, 4, 5]
+    d: int = 5
+    t: int = 2
+    
+    parser = argparse.ArgumentParser(description="Identificador de processo para o sistema")
+    parser.add_argument("--id", type=int, help="Identificador de processo (id)", default=0)
+    args = parser.parse_args()
+    
+    assert(args.id in processes_id)
+    
+    node: Node = Node(
+        process_id=args.id,
+        processes_id=processes_id,
+        df_d=d,
+        df_t=t,
+        election_timeout=0
+    )
+    
+    node.init_node(None)

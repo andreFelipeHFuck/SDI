@@ -48,8 +48,8 @@ import time
 import logging
 import threading
 
-from .message.Message import Message, message, handle_message
-from .message.MessageEnum import MessageEnum
+from message.Message import Message, message, handle_message
+from message.MessageEnum import MessageEnum
 
 from statemachine import StateMachine, State
 
