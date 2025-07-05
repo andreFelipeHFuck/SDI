@@ -100,7 +100,8 @@ class Node():
         
         Message.recv_multicast(receive_message)
 
-        
+        consensus.start_round(1, 5)
+        consensus.check_and_finalize_round(1)        
     # MAIN THREAD 
     
     

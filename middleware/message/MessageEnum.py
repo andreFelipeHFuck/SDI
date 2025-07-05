@@ -11,3 +11,8 @@ class MessageEnum(Enum):
     
     # Detctor de Falhas
     HEARTBEAT =   6
+    
+    # Consenso
+    PROPOSE = 7
+    RESPONSE = 8
+    CONSENSUS_RESULT = 9
