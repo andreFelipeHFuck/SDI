@@ -85,7 +85,7 @@ class Election(StateMachine):
       self._leader = leader_id
       
       
-    def get_leader(self) -> int:
+    def get_leader(self) -> int | None:
       with self._lock:
         leader: int = self._leader
         
