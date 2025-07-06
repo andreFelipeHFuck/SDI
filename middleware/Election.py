@@ -48,8 +48,8 @@ import time
 import logging
 import threading
 
-from message.Message import Message, message, handle_message
-from message.MessageEnum import MessageEnum
+from .message.Message import Message, message, handle_message
+from .message.MessageEnum import MessageEnum
 
 from statemachine import StateMachine, State
 
@@ -77,16 +77,51 @@ class Election(StateMachine):
         self._timeout: int = timeout
         
         self._lock: threading.Lock = threading.Lock()
+        
+        # Se nó tiver perdido a eleição
+        self._in_lost: bool = False
 
+    
+    # Métodos contendo metadados
     
     def get_process_id(self) -> int:
       return self._process_id
     
-    # Métodos contendo metadados
+    
+    def set_leader(self, leader_id: int) -> None:
+      with self._lock:
+          logger.info(f"📝 Servidor ID {leader_id} identificou que o Servido ID {leader_id} é o nó líder")
+          self._leader = leader_id
+          
+          
+    def negate_is_in_lost(self) -> None:
+      """
+      Se o nó tiver perdido uma eleição, a função desativa a perda da eleição
+      """
+      
+      with self._lock:
+        if self._in_lost:
+          self._in_lost = False
         
+
+    def is_in_lost(self) -> bool:
+      """
+      Retorna se o nó foi derrotado em alguma eleição 
+      
+      Returns:
+          bool: se o nó foi derrotado retorna True, caso contrário False 
+      """
+      
+      with self._lock:
+        in_lost: bool = self._in_lost
+        
+      return in_lost
+    
+    
     def __set_leader(self, leader_id: int) -> None:
-      logger.info(f"🗳️ Servidor ID {leader_id} ganhou a eleição")
+      logger.info(f"🏆 Servidor ID {leader_id} ganhou a eleição")
       self._leader = leader_id
+      self._in_lost = False
       
       
     def get_leader(self) -> int | None:
@@ -103,12 +138,50 @@ class Election(StateMachine):
      return is_leader
    
    
-    def is_not_in_election(self) -> bool:
+    def is_in_election(self) -> bool:
       with self._lock:
-        is_in_election: bool = self.current_state.id == "normal"
+        is_in_election: bool = self.current_state.id == "candidate"
         
-      return not is_in_election
+      return is_in_election
     
+    
+    def __send_ELECTION_message(self) -> None:
+      m: bytes = message(
+              message_enum=MessageEnum.ELECTION,
+              sender_id=self._process_id,
+              payload="ELECTION"
+      )
+      
+      Message.send_multicast(message=m)
+      
+    
+    def __resend_ELECTION_message(self) -> None:
+      """
+      Se eleição estiver no estado candidate a mensagem ELECTION é reenviada no sistema
+      """
+      
+      if self.is_in_election():
+        self.__send_ELECTION_message()
+      
+   
+    def __send_ANSWER_message(self) -> None:
+      m_answer: bytes = message(
+              message_enum=MessageEnum.ANSWER,
+              sender_id=self._process_id,
+              payload="ANSWER_ACK"
+      )
+      
+      Message.send_multicast(message=m_answer)
+      
+    
+    def __send_COORDINATOR_message(self):
+      m: bytes = message(
+              message_enum=MessageEnum.COORDINATOR,
+              sender_id=self._process_id,
+              payload="COORDINATOR"
+      )
+      
+      Message.send_multicast(message=m)
     
     # Transições e Condições da Máquina de Estados 
    
@@ -120,13 +193,7 @@ class Election(StateMachine):
       logger.info(f"🗳️ Servidor ID {self._process_id} inicia a eleição")
       print(f"🗳️ Servidor ID {self._process_id} inicia a eleição")
       
-      m: bytes = message(
-              message_enum=MessageEnum.ELECTION,
-              sender_id=self._process_id,
-              payload="ELECTION"
-      )
-      
-      Message.send_multicast(message=m)
+      self.__send_ELECTION_message()
       
       
     def cond_has_highest_id(self, message: dict) -> bool:
@@ -144,43 +211,29 @@ class Election(StateMachine):
       logger.info(f"🙋 Servidor ID {self._process_id} envia ANSWER para quem requesitou a eleição")
       print(f"🙋 Servidor ID {self._process_id} envia ANSWER para quem requesitou a eleição")
       
-      m_answer: bytes = message(
-              message_enum=MessageEnum.ANSWER,
-              sender_id=self._process_id,
-              payload="ANSWER_ACK"
-      )
-      
-      Message.send_multicast(message=m_answer)
+      self.__send_ANSWER_message()
       
       logger.info(f"🗳️ Servidor ID {self._process_id} inicia a eleição")
       print(f"🗳️ Servidor ID {self._process_id} inicia a eleição")
       
-      m: bytes = message(
-              message_enum=MessageEnum.ELECTION,
-              sender_id=self._process_id,
-              payload="ELECTION"
-      )
-      
-      Message.send_multicast(message=m)
+      self.__send_ELECTION_message()
             
     
     def before_lost(self) -> None:
        logger.info(f"🤦 Servidor ID {self._process_id} perdeu a eleição")
        print(f"🤦 Servidor ID {self._process_id} perdeu a eleição")
+       
+       self._in_lost = True
               
     
     def before_win_election(self) -> None:
       
-      logger.info(f"🙆 Servidor ID {self._process_id} ganhou a eleição")
-      print(f"🙆 Servidor ID {self._process_id} ganhou a eleição")
+      logger.info(f"🏆 Servidor ID {self._process_id} ganhou a eleição")
+      print(f"🏆 Servidor ID {self._process_id} ganhou a eleição")
       
-      m: bytes = message(
-              message_enum=MessageEnum.COORDINATOR,
-              sender_id=self._process_id,
-              payload="COORDINATOR"
-      )
       
-      Message.send_multicast(message=m)
+      
+      self.__send_COORDINATOR_message()
       
       self._leader = self._process_id
       
@@ -253,15 +306,10 @@ class Election(StateMachine):
        with self._lock:
             if self.current_state.id == "normal":
               self.send("appley", message)
+              # self.__election_process()
             
             elif self.current_state.id == "candidate":
-              m_answer: bytes = message(
-                                message_enum=MessageEnum.ANSWER,
-                                sender_id=self._process_id,
-                                payload="ANSWER_ACK"
-                        )
-            
-              Message.send_multicast(message=m_answer)
+              self.__send_ANSWER_message()
               
               
     def __message_ANSWER(self, messsage: bytes) -> None:
@@ -274,7 +322,7 @@ class Election(StateMachine):
        with self._lock:
             if self.current_state.id == "normal":
               self.__set_leader(message["sender_id"])
-
+              
 
     def handle_election_message(self, message: dict) -> None:
       try:
@@ -293,6 +341,9 @@ class Election(StateMachine):
   
       except Exception as e:
         print(f"error: {e}")
+        
+      # Reenvia a mensagem ELECTIO se o nó estiver como candidato
+      self.__resend_ELECTION_message()
 
 
   

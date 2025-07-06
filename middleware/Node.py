@@ -9,9 +9,9 @@ import threading
 import queue
 import time
 
-from message.Message import Message, MessageEnum, message, handle_message
-from DF import DF
-from Election import Election
+from .message.Message import Message, MessageEnum, message, handle_message
+from .DF import DF
+from .Election import Election
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +91,8 @@ class Node():
     
     def __leader_is_active(self) -> bool:
         """
-        Retorna se o atual processo líder está ativo 
+        Retorna se o atual processo líder está ativo, caso o nó tenha perdido a eleição
+        eventualmente algum nó será eleito como líder
 
         Returns:
             bool: se o processo líder está ativo True, caso contrário False
@@ -100,20 +101,20 @@ class Node():
         if self._df == None:
             raise Exception("Detctor de falhas não foi iniciado")
         
+       
         leader: int | None = self._ele.get_leader()
-        
+            
         # Se nenhum líder foi declarado
         if  leader == None:
             return False
-        
+            
         # Se o líde estiver entre os processos suspeitos 
         elif leader in self._df.suspected_list():
             return False
-        
-        
+            
+            
         return True
         
-    
     # Thread métodos
     
     def __main_thread_start(self) -> None:
@@ -122,6 +123,16 @@ class Node():
         
     def __listen_thread_start(self) -> None:
         self._listen_thread.start()
+        
+    def __send_leader_search_message(self) -> None:
+        m: bytes = message(
+                    message_enum=MessageEnum.LEADER_SEARCH,
+                    sender_id=self._process_id,
+                    payload="LEADER_SEARCH"
+                )
+        
+        Message.send_multicast(m)
+        
         
     def __stop(self) -> None:
         if self._df != None:
@@ -135,10 +146,35 @@ class Node():
         print("Thread listen parada")
         
     # LISTEN THREAD 
+    
+    def __handle_leader_search_message(self, m: bytes) -> None:
+        """
+        Processa as mensagens recebidas sobre o serviço de pesquisa de líder 
+
+        Args:
+            message (bytes): messagem recebida pela rede como o type LEADER_SEARCH ou LEADER_ACK 
+        """
+        
+        if m["type"] == MessageEnum.LEADER_SEARCH.value:
+            if self._ele.is_leader():
+                logger.info(f"⬆️ Servidor ID {self._process_id} envia uma mensagem identificando que é o líder")
+                
+                m_answer: bytes = message(
+                    message_enum=MessageEnum.LEADER_ACK,
+                    sender_id=self._process_id,
+                    payload="LEADER_ACK"
+                )
+                
+                Message.send_multicast(m_answer)
+                
+                
+        elif m["type"] == MessageEnum.LEADER_ACK.value:
+            self._ele.set_leader(m["sender_id"])
+            
         
     def __handle_message(self, message: dict) -> None:
         """
-        Processa as mensagens recebidas
+        Processa as mensagens recebidas pela camada de transporte
 
         Args:
             message (dict): mensagem que foi recebida pelo sistema 
@@ -149,6 +185,7 @@ class Node():
         if message.get("sender_id") == self._process_id:
             return
         
+        self.__handle_leader_search_message(message)
         self._df.handle_df_message(message)
         self._ele.handle_election_message(message)
      
@@ -164,17 +201,24 @@ class Node():
         
     # MAIN THREAD 
     
-    def __main_node_loop_thread(self, leader_task) -> None:        
+    def __main_node_loop_thread(self, leader_task) -> None:   
+        self.__send_leader_search_message()
+        
+        time.sleep(2)
+             
         while True:
             
             # Só inicia a tarefa se houver mais de um nó conectado a rede
             try:
                 if self.__num_active_processes() >= 1:
-                    if not self.__leader_is_active():                        
-                        res = self._ele.start()
+                    if not self.__leader_is_active():   
+                        if not self._ele.is_in_lost():               
+                            self._ele.start()
                         
                     else:
                         print(f"Nó {self._ele.get_leader()} é o atual líder")
+                else:
+                    self._ele.negate_is_in_lost()
                     
             except Exception as e:
                 print(f"error: {e}")
@@ -232,7 +276,7 @@ if __name__ == "__main__":
         processes_id=processes_id,
         df_d=d,
         df_t=t,
-        election_timeout=5
+        election_timeout=7
     )
     
     node.init_node(None)

@@ -38,7 +38,7 @@ import threading
 
 from enum import Enum
 
-from message.Message import Message, MessageEnum, message, handle_message
+from .message.Message import Message, MessageEnum, message, handle_message
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class DF():
         self._t = t
         
         self._process_id: int = process_id
-        self._processes_state: dict = {k: [time.time(), 0, DFState.SUSPECTED] for k in processes_list if k != process_id}
+        self._processes_status: dict = {k: [time.time(), 0, DFState.SUSPECTED] for k in processes_list if k != process_id}
         
         self._lock: threading.Lock = threading.Lock()
         
@@ -86,7 +86,7 @@ class DF():
                     lambda v: v[0],
                     filter(
                         lambda i : i[1][2].value == DFState.SUSPECTED.value,
-                        self._processes_state.items())
+                        self._processes_status.items())
                 )
             )
                         
@@ -103,7 +103,7 @@ class DF():
         Message.send_multicast(message=m)
       
         
-    def __verify_processes_state(self) -> None:
+    def __verify_processes_status(self) -> None:
         """
         Verifica a quanto tempo faz que outro processo não envia um HEARTBEAT para 
         esse processo.
@@ -112,7 +112,7 @@ class DF():
         Caso seja maior que 3 vezes altera para SUSPECTED
         """
         
-        for p in self._processes_state.values():
+        for p in self._processes_status.values():
             now = time.time()
                         
             if now - p[0] > self._t + self._d:
@@ -130,9 +130,9 @@ class DF():
         while True:
             self.__send_heartbeat()
             
-            print("Mesagem ")
+            print("Mensagem ")
             
-            self.__verify_processes_state()
+            self.__verify_processes_status()
             
             time.sleep(self._t)
             
@@ -143,7 +143,7 @@ class DF():
             now = time.time()
             
             with self._lock:
-                self._processes_state[message["sender_id"]] = [now, 0, DFState.UNSUSPECTED]
+                self._processes_status[message["sender_id"]] = [now, 0, DFState.UNSUSPECTED]
             
             
         

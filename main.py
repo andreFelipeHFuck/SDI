@@ -45,11 +45,22 @@ def main(id: int = 1) -> None:
     Inicia todas as configurações do sistema
     """
     
-    # Setup logging system
     setup_logger()
     
-
-    app = App(id)
+    d: int = 5
+    t: int = 2
+    election_timeout: int = 5
+    
+    processes_id: list[int] = [1, 2, 3, 4, 5]
+    
+    app = App(
+        process_id=id,
+        processes_id=processes_id,
+        df_d=d,
+        df_t=t,
+        election_timeout=election_timeout
+    )
+    
     app.main()
 
 if __name__ == "__main__":
