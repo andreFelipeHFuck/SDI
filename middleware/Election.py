@@ -253,7 +253,7 @@ class Election(StateMachine):
       try:
         if self._process_id == max(self._processes_id):
           with self._lock:
-            if self.current_state == "candidate":
+            if self.current_state.id == "candidate":
               self.send("win_election")
             
             else:
@@ -272,7 +272,8 @@ class Election(StateMachine):
               self.send("win_election")
         
         return True
-      except:
+      except Exception as e:
+        print(f"error: {e}")
         return False
       
     

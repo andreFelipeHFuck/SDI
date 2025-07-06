@@ -49,7 +49,7 @@ def main(id: int = 1) -> None:
     
     d: int = 5
     t: int = 2
-    election_timeout: int = 5
+    election_timeout: int = 10
     
     processes_id: list[int] = [1, 2, 3, 4, 5]
     
