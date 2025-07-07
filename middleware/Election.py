@@ -77,9 +77,6 @@ class Election(StateMachine):
         self._timeout: int = timeout
         
         self._lock: threading.Lock = threading.Lock()
-        
-        # Se nó tiver perdido a eleição
-        self._in_lost: bool = False
 
     
     # Métodos contendo metadados
@@ -93,35 +90,10 @@ class Election(StateMachine):
           logger.info(f"📝 Servidor ID {leader_id} identificou que o Servido ID {leader_id} é o nó líder")
           self._leader = leader_id
           
-          
-    def negate_is_in_lost(self) -> None:
-      """
-      Se o nó tiver perdido uma eleição, a função desativa a perda da eleição
-      """
-      
-      with self._lock:
-        if self._in_lost:
-          self._in_lost = False
-        
-
-    def is_in_lost(self) -> bool:
-      """
-      Retorna se o nó foi derrotado em alguma eleição 
-      
-      Returns:
-          bool: se o nó foi derrotado retorna True, caso contrário False 
-      """
-      
-      with self._lock:
-        in_lost: bool = self._in_lost
-        
-      return in_lost
-    
-    
+            
     def __set_leader(self, leader_id: int) -> None:
       logger.info(f"🏆 Servidor ID {leader_id} ganhou a eleição")
       self._leader = leader_id
-      self._in_lost = False
       
       
     def get_leader(self) -> int | None:
@@ -209,28 +181,22 @@ class Election(StateMachine):
       """
       
       logger.info(f"🙋 Servidor ID {self._process_id} envia ANSWER para quem requesitou a eleição")
-      print(f"🙋 Servidor ID {self._process_id} envia ANSWER para quem requesitou a eleição")
       
       self.__send_ANSWER_message()
       
-      logger.info(f"🗳️ Servidor ID {self._process_id} inicia a eleição")
-      print(f"🗳️ Servidor ID {self._process_id} inicia a eleição")
+      logger.info(f"🗳️ Servidor ID {self._process_id} inicia a eleição após ANSWER")
       
       self.__send_ELECTION_message()
-            
+                  
     
     def before_lost(self) -> None:
-       logger.info(f"🤦 Servidor ID {self._process_id} perdeu a eleição")
-       print(f"🤦 Servidor ID {self._process_id} perdeu a eleição")
-       
-       self._in_lost = True
+      pass
               
     
     def before_win_election(self) -> None:
       
       logger.info(f"🏆 Servidor ID {self._process_id} ganhou a eleição")
       print(f"🏆 Servidor ID {self._process_id} ganhou a eleição")
-      
       
       
       self.__send_COORDINATOR_message()
@@ -304,19 +270,26 @@ class Election(StateMachine):
       
           
     def __message_ELECTION(self, message: bytes) -> None:
+       sender_id_is_greater_than_id: bool = False
        with self._lock:
             if self.current_state.id == "normal":
               self.send("appley", message)
-              # self.__election_process()
             
             elif self.current_state.id == "candidate":
-              self.__send_ANSWER_message()
+              sender_id_is_greater_than_id = True
+
+       if sender_id_is_greater_than_id:
+          logger.info(f"🙋 Servidor ID {self._process_id} possui um ID maior que o Nó {message["sender_id"]}, então envia ANSWER para quem requesitou a eleição")
+          self.__send_ANSWER_message()
+          
               
               
-    def __message_ANSWER(self, messsage: bytes) -> None:
+    def __message_ANSWER(self, message: bytes) -> None:
       with self._lock:
             if self.current_state.id == "candidate":
+              logger.info(f"🤦 Servidor ID {self._process_id} perdeu a eleição para o Nó {message["sender_id"]}")       
               self.send("lost")
+
               
     
     def __message_COORDINATOR(self, message: bytes) -> None:

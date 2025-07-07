@@ -168,8 +168,9 @@ class Node():
                 Message.send_multicast(m_answer)
                 
                 
-        elif m["type"] == MessageEnum.LEADER_ACK.value:
+        elif m["type"] == MessageEnum.LEADER_ACK.value and not self.__leader_is_active():
             self._ele.set_leader(m["sender_id"])
+            logger.info(f"⬇️ Servidor ID {self._process_id} detctou que o Nó {m["sender_id"]} é o atual líder")
             
         
     def __handle_message(self, message: dict) -> None:
@@ -204,7 +205,7 @@ class Node():
     def __main_node_loop_thread(self, leader_task) -> None:   
         self.__send_leader_search_message()
         
-        time.sleep(2)
+        time.sleep(5)
              
         while True:
             
@@ -212,25 +213,19 @@ class Node():
             try:
                 if self.__num_active_processes() >= 1:
                     if not self.__leader_is_active():   
-                        if not self._ele.is_in_lost():               
-                            self._ele.start()
+                        self._ele.start()
                         
                     else:
-                        print(f"Nó {self._ele.get_leader()} é o atual líder")
-                else:
-                    self._ele.negate_is_in_lost()
+                        logger.info(f"🫡 Nó {self._ele.get_leader()} é o atual líder")
                     
             except Exception as e:
                 print(f"error: {e}")
                 logger.warning(f"⚠️ Detctor de falhas não foi iniciado, não é possível iniciar a tarefa do nó")
                 
-                
             
+            logger.info(f"🤝 Nó {self._process_id} está conectado a {self.__num_active_processes()} outros nós")
             
-            print(f"Nó {self._process_id} está conectado a {self.__num_active_processes()} outros nós")
-            
-            time.sleep(2)
-            
+            time.sleep(2)       
                 
     # Métodos para o APP
 

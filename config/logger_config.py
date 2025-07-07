@@ -3,7 +3,7 @@ import time
 import sys 
 import os
 
-def setup_logger():
+def setup_logger(id: int):
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
     
@@ -20,7 +20,7 @@ def setup_logger():
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
         
-    file_handler = logging.FileHandler(f'log/app-{int(time.time())}.log')
+    file_handler = logging.FileHandler(f'log/app-{id}-{int(time.time())}.log')
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
     

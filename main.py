@@ -45,7 +45,7 @@ def main(id: int = 1) -> None:
     Inicia todas as configurações do sistema
     """
     
-    setup_logger()
+    setup_logger(id)
     
     d: int = 5
     t: int = 2
