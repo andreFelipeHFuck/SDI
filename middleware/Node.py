@@ -116,7 +116,7 @@ class Node():
         elif leader in suspected:
             return False
         
-        
+
         return True
         
     # Thread métodos
@@ -141,9 +141,9 @@ class Node():
             self._is_send_leader_search_message = False
         
         
-    # LISTEN THREAD j
+    # LISTEN THREAD 
     
-    def __send_LEADER_CHSEAR(self) -> None:
+    def __send_LEADER_SEARCH(self) -> None:
         m: bytes = message(
                     message_enum=MessageEnum.LEADER_SEARCH,
                     sender_id=self._process_id,
@@ -191,6 +191,7 @@ class Node():
             
             with self._send_leader_search_message_lock:
                 self._is_send_leader_search_message = False
+        
         
     def __handle_message(self, message: dict) -> None:
         """
