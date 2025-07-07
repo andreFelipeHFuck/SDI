@@ -214,6 +214,7 @@ class Node():
             
         if search:
             self.__send_LEADER_SEARCH()
+            time.sleep(2)
         
         
         self._ele.handle_election_message(message)
