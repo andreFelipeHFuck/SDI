@@ -156,7 +156,7 @@ class Message():
         
         try:
             # Envio de dados
-            logger.info(f"⬆️ Mensagem Multicast Enviando: {message}")
+            logger.info(f"⬆️ Mensagem Multicast Enviando: {handle_message(message)}")
             s: socket = Message.create_socket_multicast()
             sent: int = s.sendto(message, multicast_group)
             
@@ -189,7 +189,7 @@ class Message():
         while True:
             data, _ = s.recvfrom(1024)
         
-            logger.info(f"⬇️ Mensagem Multicast Recebida: {message}")
+            logger.info(f"⬇️ Mensagem Multicast Recebida: {handle_message(data)}")
             
             f(data)
         
