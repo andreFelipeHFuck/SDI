@@ -281,7 +281,6 @@ class Election(StateMachine):
        if sender_id_is_greater_than_id:
           logger.info(f"🙋 Servidor ID {self._process_id} possui um ID maior que o Nó {message["sender_id"]}, então envia ANSWER para quem requesitou a eleição")
           self.__send_ANSWER_message()
-          
               
               
     def __message_ANSWER(self, message: bytes) -> None:
@@ -291,7 +290,6 @@ class Election(StateMachine):
               self.send("lost")
 
               
-    
     def __message_COORDINATOR(self, message: bytes) -> None:
        with self._lock:
             if self.current_state.id == "normal":

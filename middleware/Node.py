@@ -133,6 +133,8 @@ class Node():
         
         Message.send_multicast(m)
         
+        logger.info(f"❔ Servidor {self._process_id} pergunta para o sitema quem é o líder")
+        
         
     def __stop(self) -> None:
         if self._df != None:
