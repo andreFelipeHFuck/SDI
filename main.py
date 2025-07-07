@@ -43,6 +43,9 @@ class App(Node.Node):
                 # Non-leader nodes handle proposals and votes in __handle_message
                 sleep(2)
     
+    def consensus(self):
+        return Node.Node.consensus(self)
+
     def main(self) -> None:
         self.init_node(leader_task=self.leader_task)
 

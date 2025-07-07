@@ -27,6 +27,7 @@ class ByzantineConsensus:
         while time.time() - start_time < timeout:
             try:
                 msg = self.node._message_queue.get(timeout=timeout - (time.time() - start_time))
+                # Ensure all consensus-related messages are put in the queue in Node
                 if msg.get("type") == MessageEnum.BIZANTINE_VOTE.value:
                     sender = int(msg["sender_id"])
                     vote = int(msg["payload"])
@@ -36,6 +37,7 @@ class ByzantineConsensus:
 
         consensus_value = max(self.votes.values()) if self.votes else None
         if consensus_value is not None:
+            self.node.logger.info(f"[BIZANTINE] Leader {self.node._process_id} decided consensus value: {consensus_value}")
             m = message(
                 message_enum=MessageEnum.BIZANTINE_DECIDE,
                 sender_id=self.node._process_id,
@@ -44,9 +46,9 @@ class ByzantineConsensus:
             Message.send_multicast(m)
         return consensus_value
 
-    def handle_message(self, message):
-        if message.get("type") == MessageEnum.BIZANTINE_PROPOSE.value:
-            proposal = int(message["payload"])
+    def handle_message(self, msg):
+        if msg.get("type") == MessageEnum.BIZANTINE_PROPOSE.value:
+            proposal = int(msg["payload"])
             vote = proposal * proposal * self.node._process_id
             m = message(
                 message_enum=MessageEnum.BIZANTINE_VOTE,
@@ -54,6 +56,6 @@ class ByzantineConsensus:
                 payload=str(vote)
             )
             Message.send_multicast(m)
-        elif message.get("type") == MessageEnum.BIZANTINE_DECIDE.value:
-            consensus_value = int(message["payload"])
+        elif msg.get("type") == MessageEnum.BIZANTINE_DECIDE.value:
+            consensus_value = int(msg["payload"])
             self.node.logger.info(f"[BIZANTINE] Node {self.node._process_id} received consensus value: {consensus_value}")
