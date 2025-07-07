@@ -52,11 +52,14 @@ class Node():
         self._main_thread: threading.Thread = None        
         self._listen_thread: threading.Thread = None
         
-        self.is_send_leader_search_message: bool = False
+        self._is_send_leader_search_message: bool = False
         self._send_leader_search_message_lock: threading.Lock = threading.Lock()
         
         # Módulo de Consenso
         self.consensus_module = ByzantineConsensus(self)
+        self._is_send_request_value: bool = False   
+        self._send_request_value_lock: threading.Lock = threading.Lock()
+        
                         
         # Fila de mensagens entre listen_thread e thread Node padrão
         self._message_queue: queue.Queue = queue.Queue()
@@ -133,6 +136,8 @@ class Node():
         self._listen_thread.start()
         
         
+    # LISTEN THREAD 
+    
     def __send_leader_search_message(self, timeout: int) -> None:
         logger.info(f"❔ Servidor {self._process_id} pergunta para o sitema quem é o líder")
         
@@ -144,8 +149,6 @@ class Node():
         with self._send_leader_search_message_lock:
             self._is_send_leader_search_message = False
         
-        
-    # LISTEN THREAD 
     
     def __send_LEADER_SEARCH(self) -> None:
         m: bytes = message(
@@ -167,6 +170,34 @@ class Node():
         )
                 
         Message.send_multicast(m_answer)
+        
+    def __send_REQUEST_VALUE(self) -> None:
+        m_answer: bytes = message(
+            message_enum=MessageEnum.REQUEST_VALUE,
+            sender_id=self._process_id,
+            payload="REQUEST_VALUE"
+        )
+                
+        Message.send_multicast(m_answer)
+        
+        
+    def __send_request_value_message(self, timeout: int) -> None:
+        """
+        Requisita um valor para todos os outros servidores
+
+        Args:
+            timeout (int): tempo em que a mesagem será difundida pelo sistema
+        """
+        
+        logger.info(f"🔢 Servidor {self._process_id} requisita os valores computados pelos outros servidores")
+        
+        with self._send_request_value_lock:
+            self._is_send_request_value = True
+        
+        time.sleep(timeout)
+        
+        with self._send_request_value_lock:
+            self._is_send_request_value = False
         
         
     def __handle_leader_search_message(self, m: bytes) -> None:
@@ -197,6 +228,24 @@ class Node():
                 self._is_send_leader_search_message = False
         
         
+    def __diffusion_send_LEADER_SEARCH(self):
+        search: bool = False
+        with self._send_leader_search_message_lock:
+            search = self._is_send_leader_search_message
+            
+        if search:
+            self.__send_LEADER_SEARCH()
+            
+    
+    def __diffusion_send_REQUEST_VALUE(self):
+        request: bool = False
+        with self._send_request_value_lock:
+            request = self._is_send_request_value
+            
+        if request:
+            self.__send_REQUEST_VALUE()    
+        
+        
     def __handle_message(self, message: dict) -> None:
         """
         Processa as mensagens recebidas pela camada de transporte
@@ -209,18 +258,15 @@ class Node():
         if message.get("sender_id") == self._process_id:
             return
         
+        
         self._df.handle_df_message(message)
         self.__handle_leader_search_message(message)
         
-        search: bool = False
-        with self._send_leader_search_message_lock:
-            search = self._is_send_leader_search_message
+        
+        self.__diffusion_send_LEADER_SEARCH()
+        self.__diffusion_send_REQUEST_VALUE()
             
-        if search:
-            self.__send_LEADER_SEARCH()
-            time.sleep(2)
-        
-        
+            
         self._ele.handle_election_message(message)
         
         # Put consensus-related messages in the queue for the leader to process
@@ -255,10 +301,9 @@ class Node():
                         leader_task_thread = None
                     else:
                         logger.info(f"🫡 Nó {self._ele.get_leader()} é o atual líder")
-                        if self._ele.is_leader() and leader_task and (leader_task_thread is None or not leader_task_thread.is_alive()):
-                            leader_task_thread = threading.Thread(target=leader_task)
-                            leader_task_thread.daemon = True
-                            leader_task_thread.start()
+                        if self._ele.is_leader():
+                            self.__send_request_value_message(2)
+                
                 else:
                     self._ele.set_leader(None)
                     leader_task_thread = None
