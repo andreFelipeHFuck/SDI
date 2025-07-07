@@ -8,10 +8,12 @@ import logging
 import threading
 import queue
 import time
+from random import randint
 
 from .message.Message import Message, MessageEnum, message, handle_message
 from .DF import DF
 from .Election import Election
+from .ByzantineConsensus import ByzantineConsensus
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +55,8 @@ class Node():
         self.is_send_leader_search_message: bool = False
         self._send_leader_search_message_lock: threading.Lock = threading.Lock()
         
+        # Módulo de Consenso
+        self.consensus_module = ByzantineConsensus(self)
                         
         # Fila de mensagens entre listen_thread e thread Node padrão
         self._message_queue: queue.Queue = queue.Queue()
@@ -217,7 +221,21 @@ class Node():
         
         
         self._ele.handle_election_message(message)
-     
+        self.consensus_module.handle_message(message)
+        
+        # Byzantine consensus message handling
+        if message.get("type") == MessageEnum.BIZANTINE_PROPOSE.value:
+            proposal = int(message["payload"])
+            vote = proposal * proposal * self._process_id
+            m = message(
+                message_enum=MessageEnum.BIZANTINE_VOTE,
+                sender_id=self._process_id,
+                payload=str(vote)
+            )
+            Message.send_multicast(m)
+        elif message.get("type") == MessageEnum.BIZANTINE_DECIDE.value:
+            consensus_value = int(message["payload"])
+            logger.info(f"[BIZANTINE] Node {self._process_id} received consensus value: {consensus_value}")
         
     def __listen_thread(self) -> None:
         def receive_message(m: bytes):
@@ -280,8 +298,6 @@ class Node():
         return self._ele.get_leader() == self._processes_id()
     
     
-    def consensus(self) -> int:
-        pass
 
 
 if __name__ == "__main__":

@@ -34,8 +34,14 @@ class App(Node.Node):
         
         O sistema realiza o consenso de que possui o maior valor 
         """
-        
-        pass
+        while True:
+            if self._ele.is_leader():
+                consensus_value = self.consensus()
+                logger.info(f"[BIZANTINE] Consensus value: {consensus_value}")
+                sleep(5)
+            else:
+                # Non-leader nodes handle proposals and votes in __handle_message
+                sleep(2)
     
     def main(self) -> None:
         self.init_node(leader_task=self.leader_task)
