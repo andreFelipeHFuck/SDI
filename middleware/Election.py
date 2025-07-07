@@ -61,7 +61,7 @@ class Election(StateMachine):
     candidate: State = State()
     elected: State = State(final=True)
     
-    start_election = normal.to(candidate)
+    start_election = normal.to(candidate, cond="cond_start_election")
     appley  = normal.to(candidate, cond="cond_has_highest_id")
     lost = candidate.to(normal)
     win_election = candidate.to(elected)
@@ -87,13 +87,21 @@ class Election(StateMachine):
     
     def set_leader(self, leader_id: int) -> None:
       with self._lock:
-          logger.info(f"📝 Servidor ID {leader_id} identificou que o Servido ID {leader_id} é o nó líder")
-          self._leader = leader_id
+          print(f"N: {self._leader}, L: {leader_id}")
+          if leader_id != None:
+            logger.info(f"📝 Servidor ID {self._process_id} identificou que o Servido ID {leader_id} é o nó líder")
+            
+            self._leader = int(leader_id)
+          else:
+            self._leader = leader_id
           
             
     def __set_leader(self, leader_id: int) -> None:
       logger.info(f"🏆 Servidor ID {leader_id} ganhou a eleição")
-      self._leader = leader_id
+      if leader_id != None:
+        self._leader = int(leader_id)
+      else:
+        self._leader = leader_id
       
       
     def get_leader(self) -> int | None:
@@ -108,6 +116,31 @@ class Election(StateMachine):
        is_leader: bool = self._process_id == self._leader
        
      return is_leader
+   
+   
+    def leader_is_alive(self) -> bool:
+      """
+      Verifica se o líder está vivo
+
+      Returns:
+          bool: caso esteja vivo True, caso contrário False
+      """
+      
+      with self._lock:
+        is_alive: bool = self._leader != None
+        
+      return is_alive
+   
+   
+    def __leader_is_alive(self) -> bool:
+      """
+      Verifica se o líder está vivo
+
+      Returns:
+          bool: caso esteja vivo True, caso contrário False
+      """
+      
+      return self._leader != None
    
    
     def is_in_election(self) -> bool:
@@ -156,6 +189,10 @@ class Election(StateMachine):
       Message.send_multicast(message=m)
     
     # Transições e Condições da Máquina de Estados 
+    
+    def cond_start_election(self) -> bool:
+      return not self.__leader_is_alive()
+   
    
     def before_start_election(self) -> None:
       """
@@ -163,13 +200,13 @@ class Election(StateMachine):
       """
       
       logger.info(f"🗳️ Servidor ID {self._process_id} inicia a eleição")
-      print(f"🗳️ Servidor ID {self._process_id} inicia a eleição")
       
       self.__send_ELECTION_message()
       
       
     def cond_has_highest_id(self, message: dict) -> bool:
-      return self._process_id > message["sender_id"]
+      print(f"Teste: {self._process_id > message["sender_id"]}")
+      return self._process_id > message["sender_id"] 
     
     
     def before_appley(self) -> None:
@@ -179,9 +216,7 @@ class Election(StateMachine):
       após isso envia uma mensagem ELECTION para iniciar uma nova 
       eleição
       """
-      
-      logger.info(f"🙋 Servidor ID {self._process_id} envia ANSWER para quem requesitou a eleição")
-      
+            
       self.__send_ANSWER_message()
       
       logger.info(f"🗳️ Servidor ID {self._process_id} inicia a eleição após ANSWER")
@@ -216,6 +251,8 @@ class Election(StateMachine):
           bool: se o processo de eilação ocorrer normalmente retorna True, caso contrário False
       """
       
+      logger.info(f"✍️ Servidor ID {self._process_id} iniciou o processos de eleição")
+      
       try:
         if self._process_id == max(self._processes_id):
           with self._lock:
@@ -225,7 +262,6 @@ class Election(StateMachine):
             else:
               return False
             
-        
         else:
           time.sleep(self._timeout)
           
@@ -260,7 +296,7 @@ class Election(StateMachine):
              self.send("start_election")
            
       except Exception as e:
-         print(f"Estado inconsistente, error: {e}")
+         logger.error(f"Estado inconsistente, error: {e}")
          return False
        
        
@@ -273,13 +309,14 @@ class Election(StateMachine):
        sender_id_is_greater_than_id: bool = False
        with self._lock:
             if self.current_state.id == "normal":
+              logger.info(f"🙋 Servidor ID {self._process_id} envia ANSWER para o Servidor {message["sender_id"]} que requesitou a eleição")
               self.send("appley", message)
             
             elif self.current_state.id == "candidate":
               sender_id_is_greater_than_id = True
 
        if sender_id_is_greater_than_id:
-          logger.info(f"🙋 Servidor ID {self._process_id} possui um ID maior que o Nó {message["sender_id"]}, então envia ANSWER para quem requesitou a eleição")
+          logger.info(f"🙋 Servidor ID {self._process_id} possui um ID maior que o Servidor {message["sender_id"]}, então envia ANSWER para quem requesitou a eleição")
           self.__send_ANSWER_message()
               
               
@@ -293,7 +330,13 @@ class Election(StateMachine):
     def __message_COORDINATOR(self, message: bytes) -> None:
        with self._lock:
             if self.current_state.id == "normal":
-              self.__set_leader(message["sender_id"])
+              self.__set_leader(int(message["sender_id"]))
+            
+            if self.current_state.id == "candidate":
+              logger.info(f"🤦 Servidor ID {self._process_id} perdeu a eleição para o Nó {message["sender_id"]}")       
+              self.send("lost")
+              self.__set_leader(int(message["sender_id"]))
+
               
 
     def handle_election_message(self, message: dict) -> None:
@@ -303,7 +346,7 @@ class Election(StateMachine):
            
               
         # Algum nó com id maior pretende ser o coordenador 
-        elif message["type"] == MessageEnum.ANSWER.value:
+        elif message["type"] == MessageEnum.ANSWER.value and self._process_id < message["sender_id"]:
           self.__message_ANSWER(message)
               
               
