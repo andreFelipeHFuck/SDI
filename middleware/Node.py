@@ -60,6 +60,9 @@ class Node():
         self._is_send_request_value: bool = False   
         self._send_request_value_lock: threading.Lock = threading.Lock()
         
+        # Contador de resposta de valores 
+        self._cont_answer_value: int = 0
+        
                         
         # Fila de mensagens entre listen_thread e thread Node padrão
         self._message_queue: queue.Queue = queue.Queue()
@@ -171,11 +174,29 @@ class Node():
                 
         Message.send_multicast(m_answer)
         
+        
     def __send_REQUEST_VALUE(self) -> None:
         m_answer: bytes = message(
             message_enum=MessageEnum.REQUEST_VALUE,
             sender_id=self._process_id,
             payload="REQUEST_VALUE"
+        )
+                
+        Message.send_multicast(m_answer)
+        
+    
+    def __send_ANSWER_VALUE(self, value: int) -> None:
+        """
+        Retorna o valor da mensagem com o valores pedidos pelo Servidor líder
+
+        Args:
+            value (tuple[int, int]): valor de round e outro valor da aplicação
+        """
+        
+        m_answer: bytes = message(
+            message_enum=MessageEnum.ANSWER_VALUE,
+            sender_id=self._process_id,
+            payload=f"ANSWER_VALUE:{self._round}:{value}"
         )
                 
         Message.send_multicast(m_answer)
@@ -199,8 +220,26 @@ class Node():
         with self._send_request_value_lock:
             self._is_send_request_value = False
         
+    
+    def __diffusion_send_LEADER_SEARCH(self):
+        search: bool = False
+        with self._send_leader_search_message_lock:
+            search = self._is_send_leader_search_message
+            
+        if search:
+            self.__send_LEADER_SEARCH()
+            
+    
+    def __diffusion_send_REQUEST_VALUE(self):
+        request: bool = False
+        with self._send_request_value_lock:
+            request = self._is_send_request_value
+            
+        if request:
+            self.__send_REQUEST_VALUE()    
         
-    def __handle_leader_search_message(self, m: bytes) -> None:
+        
+    def __handle_leader_search_message(self, m: dict) -> None:
         """
         Processa as mensagens recebidas sobre o serviço de pesquisa de líder 
 
@@ -226,24 +265,28 @@ class Node():
             
             with self._send_leader_search_message_lock:
                 self._is_send_leader_search_message = False
-        
-        
-    def __diffusion_send_LEADER_SEARCH(self):
-        search: bool = False
-        with self._send_leader_search_message_lock:
-            search = self._is_send_leader_search_message
-            
-        if search:
-            self.__send_LEADER_SEARCH()
-            
+                
+                
+    def __preposition_ANSWER_VALUE(self, m: dict) -> bool:
+        return m["type"] == MessageEnum.ANSWER_VALUE.value and self._ele.is_leader() and self._cont_answer_value < self.__num_active_processes()
     
-    def __diffusion_send_REQUEST_VALUE(self):
-        request: bool = False
-        with self._send_request_value_lock:
-            request = self._is_send_request_value
+    
+    def __handle_value_message(self, m: bytes) -> None:
+        if m["type"] == MessageEnum.REQUEST_VALUE.value:
+            logger.info(f"⬇️ Servidor ID {self._process_id} recebeu o pedido dos valores do Servidor {m["sender_id"]}")
+            self.__send_ANSWER_VALUE(100)
+
+
+        elif self.__preposition_ANSWER_VALUE(m):
+            value: tuple[int, int] = m["payload"].split(":")
+            logger.info(f"DADOS RECEBIDOS DO SERVIDOR {m['sender_id']}, ROUND: {value[1]} e VALUE: {value[2]}")
+            self._cont_answer_value += 1
             
-        if request:
-            self.__send_REQUEST_VALUE()    
+            if self._cont_answer_value == self.__num_active_processes():
+                with self._send_request_value_lock:
+                    self._is_send_request_value = False
+                    
+                self._cont_answer_value = 0
         
         
     def __handle_message(self, message: dict) -> None:
@@ -261,7 +304,7 @@ class Node():
         
         self._df.handle_df_message(message)
         self.__handle_leader_search_message(message)
-        
+        self.__handle_value_message(message)
         
         self.__diffusion_send_LEADER_SEARCH()
         self.__diffusion_send_REQUEST_VALUE()
