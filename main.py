@@ -56,9 +56,9 @@ def main(id: int = 1) -> None:
     
     setup_logger(id)
     
-    d: int = 5
-    t: int = 4
-    election_timeout: int = 10
+    d: int = 2
+    t: int = 1
+    election_timeout: int = 5
     
     processes_id: list[int] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     
