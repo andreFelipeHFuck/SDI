@@ -11,9 +11,10 @@ class ByzantineConsensus:
 
     def run_leader_consensus(self):
         """
-        Leader proposes a value, collects votes, and broadcasts the consensus value.
+        Leader starts consensus round, collects votes, and broadcasts the consensus value.
         """
         self.node.round += 1
+
         m = message(
             message_enum=MessageEnum.BIZANTINE_START,
             sender_id=self.node._process_id,
@@ -28,7 +29,6 @@ class ByzantineConsensus:
         while time.time() - start_time < timeout:
             try:
                 msg = self.node._message_queue.get(timeout=timeout - (time.time() - start_time))
-                # Ensure all consensus-related messages are put in the queue in Node
                 if msg.get("type") == MessageEnum.BIZANTINE_VOTE.value:
                     sender = int(msg["sender_id"])
                     vote = int(msg["payload"].split(":")[1])  # Extract the vote from the payload

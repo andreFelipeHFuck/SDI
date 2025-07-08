@@ -298,7 +298,7 @@ class Node():
                     self._ele.set_leader(None)
             except Exception as e:
                 print(f"error: {e}")
-                logger.warning(f"⚠️ Detctor de falhas não foi iniciado, não é possível iniciar a tarefa do Servidor")
+                logger.warning(f"⚠️ Detector de falhas não foi iniciado, não é possível iniciar a tarefa do Servidor")
             logger.info(f"🤝 Servidor {self._process_id} está conectado a {self.__num_active_processes()} outros Servidores")
             time.sleep(2)
                 
@@ -325,7 +325,10 @@ class Node():
     
     def consensus(self):
         return self.consensus_module.run_leader_consensus()
-    
+
+    def get_vote_value(self):
+        i = randint(1, 100)
+        return i * i * self._process_id
 
 
 if __name__ == "__main__":
