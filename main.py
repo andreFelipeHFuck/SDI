@@ -24,7 +24,7 @@ class App(Node.Node):
         )
         
         
-    def leader_task(self) -> None:
+    def main_task(self, n: int) -> None:
         """
         Código executado em loop na aplicação
         
@@ -35,10 +35,24 @@ class App(Node.Node):
         O sistema realiza o consenso de que possui o maior valor 
         """
         
-        pass
+        for round in range(0, n):
+            # Tarefa de cada App executando sobre um Servidor
+            i: int = randint(0, 100)
+            
+            value: int = i * i * self.get_id()
+            
+            print(value)
+            
+            res: int = self.consensus((round, value))
+            
+            if self.node_is_leader():
+                print(f"O resultado do consendo foi {res}")
+        
     
-    def main(self) -> None:
-        self.init_node(leader_task=self.leader_task)
+    def main(self, n: int = 10) -> None:
+        self.init_node()
+        
+        self.main_task(n)
 
 def main(id: int = 1) -> None:
     """

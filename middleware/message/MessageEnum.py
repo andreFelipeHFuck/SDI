@@ -20,4 +20,4 @@ class MessageEnum(Enum):
     ANSWER_VALUE = 9
     
     # Algoritmo do Consenso
-    
+    CONSENSUS =    10

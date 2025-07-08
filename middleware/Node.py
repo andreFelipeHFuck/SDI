@@ -320,7 +320,7 @@ class Node():
         
     # MAIN THREAD 
     
-    def __main_node_loop_thread(self, leader_task) -> None:   
+    def __election_loop_thread(self) -> None:   
         self.__send_leader_search_message(2)
                      
         while True:
@@ -334,9 +334,8 @@ class Node():
                         
                     else:
                         logger.info(f"🫡 Nó {self._ele.get_leader()} é o atual líder")
-                        if self._ele.is_leader():
-                            self.__send_request_value_message(2)
-                
+                        
+                        # Executar a função da aplicação                
                 else:
                     self._ele.set_leader(None)
 
@@ -351,8 +350,12 @@ class Node():
             time.sleep(2)       
                 
     # Métodos para o APP
+    
+    def get_id(self) -> int:
+        return self._process_id
 
-    def init_node(self, leader_task) -> None:
+
+    def init_node(self) -> None:
         # Inicia o detector de falhas
         self._df = DF(
             d=self._df_d,
@@ -361,7 +364,7 @@ class Node():
             processes_list=self._processes_id
         )
         
-        self._main_thread = threading.Thread(target=self.__main_node_loop_thread, args=(leader_task,))
+        self._main_thread = threading.Thread(target=self.__election_loop_thread)
         self._listen_thread = threading.Thread(target=self.__listen_thread)
         
         self.__main_thread_start()
@@ -371,8 +374,8 @@ class Node():
     def node_is_leader(self) -> bool:
         return self._ele.get_leader() == self._processes_id()
     
-    
-    def consensus(self) -> int:
+
+    def consensus(self, values: tuple[int, int]) -> tuple[int, int]:
         pass
 
 
