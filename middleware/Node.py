@@ -31,7 +31,7 @@ class Node():
         
         self._process_id: int = process_id
         self._processes_id: list[int] = [id for id in processes_id if id != self._process_id]
-        self._round: int = round
+        self.round: int = 0
         
         self._df_d: int = df_d
         self._df_t: int = df_t
@@ -67,7 +67,7 @@ class Node():
         self._message_queue: queue.Queue = queue.Queue()
             
         self.logger = logger
-        logger.info(f"✅ Servidor ID {self._process_id}, Rodada {self._round}, Iniciado com Sucesso!")
+        logger.info(f"✅ Servidor ID {self._process_id}, Rodada {self.round}, Iniciado com Sucesso!")
      
      
     # Métodos internos do Node
@@ -82,7 +82,7 @@ class Node():
         i = randint(1, 100)
         vote_value = i * i * self._process_id
 
-        logger.info(f"🔢 Servidor {self._process_id} gera o número {i} para o consenso, com total = {vote_value}")
+        logger.info(f"🔢 Round {self.round}: Servidor {self._process_id} gera o número {i} para o consenso, com total = {vote_value}")
         return vote_value
     
     def __num_active_processes(self) -> int:
@@ -263,7 +263,7 @@ class Node():
         
         # Put consensus-related messages in the queue for the leader to process
         if message.get("type") in [
-            MessageEnum.BIZANTINE_PROPOSE.value,
+            MessageEnum.BIZANTINE_START.value,
             MessageEnum.BIZANTINE_VOTE.value,
             MessageEnum.BIZANTINE_DECIDE.value,
         ]:

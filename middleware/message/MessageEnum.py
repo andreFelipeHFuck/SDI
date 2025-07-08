@@ -17,6 +17,6 @@ class MessageEnum(Enum):
     LEADER_ACK =    8
     
     # Bizantino
-    BIZANTINE_PROPOSE = 9
+    BIZANTINE_START = 9
     BIZANTINE_VOTE = 10
     BIZANTINE_DECIDE = 11

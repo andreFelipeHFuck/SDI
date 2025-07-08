@@ -13,11 +13,11 @@ class ByzantineConsensus:
         """
         Leader proposes a value, collects votes, and broadcasts the consensus value.
         """
-        i = randint(1, 100)
+        self.node.round += 1
         m = message(
-            message_enum=MessageEnum.BIZANTINE_PROPOSE,
+            message_enum=MessageEnum.BIZANTINE_START,
             sender_id=self.node._process_id,
-            payload=str(i)
+            payload=str(self.node.round)
         )
         Message.send_multicast(m)
 
@@ -31,7 +31,10 @@ class ByzantineConsensus:
                 # Ensure all consensus-related messages are put in the queue in Node
                 if msg.get("type") == MessageEnum.BIZANTINE_VOTE.value:
                     sender = int(msg["sender_id"])
-                    vote = int(msg["payload"])
+                    vote = int(msg["payload"].split(":")[1])  # Extract the vote from the payload
+                    if sender not in self.votes and msg["payload"] == self.node.round:  # Avoid overwriting existing votes
+                        self.node.logger.info(f"[BIZANTINE] Node {self.node._process_id} received vote from {sender}: {vote}")
+                    # Store the vote in the votes dictionary
                     self.votes[sender] = vote
             except queue.Empty:
                 break
@@ -48,12 +51,11 @@ class ByzantineConsensus:
         return consensus_value
 
     def handle_message(self, msg):
-        if msg.get("type") == MessageEnum.BIZANTINE_PROPOSE.value:
-            proposal = int(msg["payload"])
+        if msg.get("type") == MessageEnum.BIZANTINE_START.value:
             m = message(
                 message_enum=MessageEnum.BIZANTINE_VOTE,
                 sender_id=self.node._process_id,
-                payload=str(self.node.get_node_vote())
+                payload=str(f"{msg["payload"]}:{self.node.get_node_vote()}")
             )
             Message.send_multicast(m)
         elif msg.get("type") == MessageEnum.BIZANTINE_DECIDE.value:
