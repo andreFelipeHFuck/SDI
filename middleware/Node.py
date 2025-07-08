@@ -267,28 +267,6 @@ class Node():
                 self._is_send_leader_search_message = False
                 
                 
-    def __preposition_ANSWER_VALUE(self, m: dict) -> bool:
-        return m["type"] == MessageEnum.ANSWER_VALUE.value and self._ele.is_leader() and self._cont_answer_value < self.__num_active_processes()
-    
-    
-    def __handle_value_message(self, m: bytes) -> None:
-        if m["type"] == MessageEnum.REQUEST_VALUE.value:
-            logger.info(f"⬇️ Servidor ID {self._process_id} recebeu o pedido dos valores do Servidor {m["sender_id"]}")
-            self.__send_ANSWER_VALUE(100)
-
-
-        elif self.__preposition_ANSWER_VALUE(m):
-            value: tuple[int, int] = m["payload"].split(":")
-            logger.info(f"DADOS RECEBIDOS DO SERVIDOR {m['sender_id']}, ROUND: {value[1]} e VALUE: {value[2]}")
-            self._cont_answer_value += 1
-            
-            if self._cont_answer_value == self.__num_active_processes():
-                with self._send_request_value_lock:
-                    self._is_send_request_value = False
-                    
-                self._cont_answer_value = 0
-        
-        
     def __handle_message(self, message: dict) -> None:
         """
         Processa as mensagens recebidas pela camada de transporte
@@ -304,7 +282,6 @@ class Node():
         
         self._df.handle_df_message(message)
         self.__handle_leader_search_message(message)
-        self.__handle_value_message(message)
         
         self.__diffusion_send_LEADER_SEARCH()
         self.__diffusion_send_REQUEST_VALUE()
