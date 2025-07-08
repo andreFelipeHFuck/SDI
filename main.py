@@ -60,7 +60,7 @@ def main(id: int = 1) -> None:
     t: int = 4
     election_timeout: int = 10
     
-    processes_id: list[int] = [1, 2, 3, 4, 5]
+    processes_id: list[int] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     
     app = App(
         process_id=id,
