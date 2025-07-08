@@ -37,7 +37,6 @@ class App(Node.Node):
         while True:
             if self._ele.is_leader():
                 consensus_value = self.consensus()
-                logger.info(f"[BIZANTINE] Consensus value: {consensus_value}")
                 sleep(5)
             else:
                 # Non-leader nodes handle proposals and votes in __handle_message

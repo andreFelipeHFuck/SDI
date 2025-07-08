@@ -11,23 +11,22 @@ class ByzantineConsensus:
 
     def run_leader_consensus(self):
         """
-        Leader proposes a value, collects votes, and broadcasts the consensus value.
+        Leader starts consensus round, collects votes, and broadcasts the consensus value.
         """
-        i = randint(1, 100)
+        # Leader just triggers the round
         m = message(
             message_enum=MessageEnum.BIZANTINE_PROPOSE,
             sender_id=self.node._process_id,
-            payload=str(i)
+            payload="START"
         )
         Message.send_multicast(m)
 
-        self.votes = {self.node._process_id: i * i * self.node._process_id}
+        self.votes = {self.node._process_id: self.node.get_vote_value()}
         start_time = time.time()
         timeout = 3  # seconds
         while time.time() - start_time < timeout:
             try:
                 msg = self.node._message_queue.get(timeout=timeout - (time.time() - start_time))
-                # Ensure all consensus-related messages are put in the queue in Node
                 if msg.get("type") == MessageEnum.BIZANTINE_VOTE.value:
                     sender = int(msg["sender_id"])
                     vote = int(msg["payload"])
@@ -48,12 +47,11 @@ class ByzantineConsensus:
 
     def handle_message(self, msg):
         if msg.get("type") == MessageEnum.BIZANTINE_PROPOSE.value:
-            proposal = int(msg["payload"])
-            vote = proposal * proposal * self.node._process_id
+            # Each node asks its App/Node for the vote value
             m = message(
                 message_enum=MessageEnum.BIZANTINE_VOTE,
                 sender_id=self.node._process_id,
-                payload=str(vote)
+                payload=str(self.node.get_vote_value())
             )
             Message.send_multicast(m)
         elif msg.get("type") == MessageEnum.BIZANTINE_DECIDE.value:
