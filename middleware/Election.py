@@ -167,6 +167,7 @@ class Election(StateMachine):
       
       if self.is_in_election():
         self.__send_ELECTION_message()
+        
       
    
     def __send_ANSWER_message(self) -> None:
