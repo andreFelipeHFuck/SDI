@@ -15,3 +15,8 @@ class MessageEnum(Enum):
     # Pesquisa do Líder
     LEADER_SEARCH = 7
     LEADER_ACK =    8
+    
+    # Bizantino
+    BIZANTINE_PROPOSE = 9
+    BIZANTINE_VOTE = 10
+    BIZANTINE_DECIDE = 11

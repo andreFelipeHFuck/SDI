@@ -177,7 +177,7 @@ class TestElection(unittest.TestCase):
             second="ELECTION"
         )  
         
-        ele_2.send("appley", message)
+        ele_2.send("apply", message)
         
         
         res: dict = res_queue.get()

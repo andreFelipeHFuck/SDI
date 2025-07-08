@@ -34,9 +34,18 @@ class App(Node.Node):
         
         O sistema realiza o consenso de que possui o maior valor 
         """
-        
-        pass
+        while True:
+            if self._ele.is_leader():
+                consensus_value = self.consensus()
+                logger.info(f"[BIZANTINE] Consensus value: {consensus_value}")
+                sleep(5)
+            else:
+                # Non-leader nodes handle proposals and votes in __handle_message
+                sleep(2)
     
+    def consensus(self):
+        return Node.Node.consensus(self)
+
     def main(self) -> None:
         self.init_node(leader_task=self.leader_task)
 
@@ -51,7 +60,7 @@ def main(id: int = 1) -> None:
     t: int = 4
     election_timeout: int = 10
     
-    processes_id: list[int] = [1, 2, 3, 4, 5]
+    processes_id: list[int] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     
     app = App(
         process_id=id,

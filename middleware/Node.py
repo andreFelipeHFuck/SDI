@@ -8,10 +8,12 @@ import logging
 import threading
 import queue
 import time
+from random import randint
 
 from .message.Message import Message, MessageEnum, message, handle_message
 from .DF import DF
 from .Election import Election
+from .ByzantineConsensus import ByzantineConsensus
 
 logger = logging.getLogger(__name__)
 
@@ -53,11 +55,13 @@ class Node():
         self.is_send_leader_search_message: bool = False
         self._send_leader_search_message_lock: threading.Lock = threading.Lock()
         
+        # Módulo de Consenso
+        self.consensus_module = ByzantineConsensus(self)
                         
         # Fila de mensagens entre listen_thread e thread Node padrão
         self._message_queue: queue.Queue = queue.Queue()
             
-    
+        self.logger = logger
         logger.info(f"✅ Servidor ID {self._process_id}, Rodada {self._round}, Iniciado com Sucesso!")
      
      
@@ -218,7 +222,15 @@ class Node():
         
         
         self._ele.handle_election_message(message)
-     
+        
+        # Put consensus-related messages in the queue for the leader to process
+        if message.get("type") in [
+            MessageEnum.BIZANTINE_PROPOSE.value,
+            MessageEnum.BIZANTINE_VOTE.value,
+            MessageEnum.BIZANTINE_DECIDE.value,
+        ]:
+            self._message_queue.put(message)
+        self.consensus_module.handle_message(message)
         
     def __listen_thread(self) -> None:
         def receive_message(m: bytes):
@@ -233,31 +245,28 @@ class Node():
     
     def __main_node_loop_thread(self, leader_task) -> None:   
         self.__send_leader_search_message(2)
-                     
+        leader_task_thread = None
         while True:
-            
-            # Só inicia a tarefa se houver mais de um nó conectado a rede
             try:
                 if self.__num_active_processes() >= 1:
                     if not self.__leader_is_active():  
                         self._ele.set_leader(None)
                         self._ele.start()
-                        
+                        leader_task_thread = None
                     else:
                         logger.info(f"🫡 Nó {self._ele.get_leader()} é o atual líder")
-                
+                        if self._ele.is_leader() and leader_task and (leader_task_thread is None or not leader_task_thread.is_alive()):
+                            leader_task_thread = threading.Thread(target=leader_task)
+                            leader_task_thread.daemon = True
+                            leader_task_thread.start()
                 else:
                     self._ele.set_leader(None)
-
-                    
+                    leader_task_thread = None
             except Exception as e:
                 print(f"error: {e}")
                 logger.warning(f"⚠️ Detctor de falhas não foi iniciado, não é possível iniciar a tarefa do Servidor")
-                
-            
             logger.info(f"🤝 Servidor {self._process_id} está conectado a {self.__num_active_processes()} outros Servidores")
-            
-            time.sleep(2)       
+            time.sleep(2)
                 
     # Métodos para o APP
 
@@ -280,9 +289,9 @@ class Node():
     def node_is_leader(self) -> bool:
         return self._ele.get_leader() == self._processes_id()
     
+    def consensus(self):
+        return self.consensus_module.run_leader_consensus()
     
-    def consensus(self) -> int:
-        pass
 
 
 if __name__ == "__main__":
