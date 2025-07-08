@@ -13,15 +13,15 @@ class ByzantineConsensus:
         """
         Leader proposes a value, collects votes, and broadcasts the consensus value.
         """
-        proposal = randint(1, 100)
+        i = randint(1, 100)
         m = message(
             message_enum=MessageEnum.BIZANTINE_PROPOSE,
             sender_id=self.node._process_id,
-            payload=str(proposal)
+            payload=str(i)
         )
         Message.send_multicast(m)
 
-        self.votes = {self.node._process_id: proposal * proposal * self.node._process_id}
+        self.votes = {self.node._process_id: i * i * self.node._process_id}
         start_time = time.time()
         timeout = 3  # seconds
         while time.time() - start_time < timeout:

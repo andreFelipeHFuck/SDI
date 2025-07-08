@@ -62,7 +62,7 @@ class Election(StateMachine):
     elected: State = State(final=True)
     
     start_election = normal.to(candidate, cond="cond_start_election")
-    appley  = normal.to(candidate, cond="cond_has_highest_id")
+    apply  = normal.to(candidate, cond="cond_has_highest_id")
     lost = candidate.to(normal)
     win_election = candidate.to(elected)
     
@@ -210,7 +210,7 @@ class Election(StateMachine):
       return self._process_id > message["sender_id"] 
     
     
-    def before_appley(self) -> None:
+    def before_apply(self) -> None:
       """
       Quando um nó se candidata como possível candidato a coordenador 
       envia a mensagem ANSWER para o nó que iniciou a eleição,
@@ -311,7 +311,7 @@ class Election(StateMachine):
        with self._lock:
             if self.current_state.id == "normal":
               logger.info(f"🙋 Servidor ID {self._process_id} envia ANSWER para o Servidor {message["sender_id"]} que requesitou a eleição")
-              self.send("appley", message)
+              self.send("apply", message)
             
             elif self.current_state.id == "candidate":
               sender_id_is_greater_than_id = True
