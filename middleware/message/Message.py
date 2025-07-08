@@ -99,9 +99,9 @@ class Message():
         sock: socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         
         try:
-            logger.info(f"⬆️ Mensagem Unicast Enviando: {message}")
+            logger.debug(f"⬆️ Mensagem Unicast Enviando: {message}")
             sock.sendto(message, (UNICAST_IP, port))
-            logger.info("✅ Dados Enviados com Sucesso")
+            logger.debug("✅ Dados Enviados com Sucesso")
 
             return True
         
@@ -134,7 +134,7 @@ class Message():
         while True:
             data, _ = s.recvfrom(1024)
 
-            logger.info(f"⬇️ Mensagem Unicast Recebida: {message}")
+            logger.debug(f"⬇️ Mensagem Unicast Recebida: {message}")
             
             f(data)
 
@@ -156,11 +156,11 @@ class Message():
         
         try:
             # Envio de dados
-            logger.info(f"⬆️ Mensagem Multicast Enviando: {handle_message(message)}")
+            logger.debug(f"⬆️ Mensagem Multicast Enviando: {handle_message(message)}")
             s: socket = Message.create_socket_multicast()
             sent: int = s.sendto(message, multicast_group)
             
-            logger.info("✅ Dados Enviados com Sucesso")
+            logger.debug("✅ Dados Enviados com Sucesso")
             return True
             
         except Exception as e:
@@ -189,7 +189,7 @@ class Message():
         while True:
             data, _ = s.recvfrom(1024)
         
-            logger.info(f"⬇️ Mensagem Multicast Recebida: {handle_message(data)}")
+            logger.debug(f"⬇️ Mensagem Multicast Recebida: {handle_message(data)}")
             
             f(data)
         
