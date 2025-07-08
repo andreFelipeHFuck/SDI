@@ -13,7 +13,7 @@ from random import randint
 from .message.Message import Message, MessageEnum, message, handle_message
 from .DF import DF
 from .Election import Election
-from .ByzantineConsensus import ByzantineConsensus
+from .Consensus import Consensus
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class Node():
         self._send_leader_search_message_lock: threading.Lock = threading.Lock()
         
         # Módulo de Consenso
-        self.consensus_module = ByzantineConsensus(self)
+        self.consensus_module = Consensus(self)
         self._is_send_request_value: bool = False   
         self._send_request_value_lock: threading.Lock = threading.Lock()
         

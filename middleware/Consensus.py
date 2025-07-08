@@ -4,7 +4,7 @@ from random import randint
 from middleware.message.MessageEnum import MessageEnum
 from middleware.message.Message import Message, message
 
-class ByzantineConsensus:
+class Consensus:
     def __init__(self, node):
         self.node = node
         self.votes = {}
