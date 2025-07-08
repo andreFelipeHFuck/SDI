@@ -22,31 +22,9 @@ class App(Node.Node):
             df_t=df_t,
             election_timeout=election_timeout
         )
-        
-        
-    def leader_task(self) -> None:
-        """
-        Código executado em loop na aplicação
-        
-        Onde o nó líder gera um número aleátorio i e envia para todos
-        os outros nós, os nós que recebm o i devem responde o processo líder 
-        com i*i*process_id
-        
-        O sistema realiza o consenso de que possui o maior valor 
-        """
-        while True:
-            if self._ele.is_leader():
-                consensus_value = self.consensus()
-                sleep(5)
-            else:
-                # Non-leader nodes handle proposals and votes in __handle_message
-                sleep(2)
-    
-    def consensus(self):
-        return Node.Node.consensus(self)
 
     def main(self) -> None:
-        self.init_node(leader_task=self.leader_task)
+        self.init_node()
 
 def main(id: int = 1) -> None:
     """
@@ -55,9 +33,9 @@ def main(id: int = 1) -> None:
     
     setup_logger(id)
     
-    d: int = 5
-    t: int = 4
-    election_timeout: int = 10
+    d: int = 2
+    t: int = 1
+    election_timeout: int = 5
     
     processes_id: list[int] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     

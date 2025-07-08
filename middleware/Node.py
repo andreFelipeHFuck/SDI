@@ -28,11 +28,10 @@ class Node():
         
         # Eliminas as falhas bizatinas
         assert(process_id in processes_id)
-
         
         self._process_id: int = process_id
         self._processes_id: list[int] = [id for id in processes_id if id != self._process_id]
-        self._round: int = round
+        self.round: int = 0
         
         self._df_d: int = df_d
         self._df_t: int = df_t
@@ -52,20 +51,39 @@ class Node():
         self._main_thread: threading.Thread = None        
         self._listen_thread: threading.Thread = None
         
-        self.is_send_leader_search_message: bool = False
+        self._is_send_leader_search_message: bool = False
         self._send_leader_search_message_lock: threading.Lock = threading.Lock()
         
         # Módulo de Consenso
         self.consensus_module = ByzantineConsensus(self)
+        self._is_send_request_value: bool = False   
+        self._send_request_value_lock: threading.Lock = threading.Lock()
+        
+        # Contador de resposta de valores 
+        self._cont_answer_value: int = 0
+        
                         
         # Fila de mensagens entre listen_thread e thread Node padrão
         self._message_queue: queue.Queue = queue.Queue()
             
         self.logger = logger
-        logger.info(f"✅ Servidor ID {self._process_id}, Rodada {self._round}, Iniciado com Sucesso!")
+        logger.info(f"✅ Servidor ID {self._process_id}, Rodada {self.round}, Iniciado com Sucesso!")
      
      
     # Métodos internos do Node
+
+    def get_node_vote(self) -> int:
+        """
+        Retorna o voto do nó atual, que é o produto do quadrado do id do nó com o id do nó
+
+        Returns:
+            int: voto do nó atual
+        """
+        i = randint(1, 100)
+        vote_value = i * i * self._process_id
+
+        logger.info(f"🔢 Round {self.round}: Servidor {self._process_id} gera o número {i} para o consenso, com total = {vote_value}")
+        return vote_value
     
     def __num_active_processes(self) -> int:
         """
@@ -133,6 +151,8 @@ class Node():
         self._listen_thread.start()
         
         
+    # LISTEN THREAD 
+    
     def __send_leader_search_message(self, timeout: int) -> None:
         logger.info(f"❔ Servidor {self._process_id} pergunta para o sitema quem é o líder")
         
@@ -144,8 +164,6 @@ class Node():
         with self._send_leader_search_message_lock:
             self._is_send_leader_search_message = False
         
-        
-    # LISTEN THREAD 
     
     def __send_LEADER_SEARCH(self) -> None:
         m: bytes = message(
@@ -168,8 +186,34 @@ class Node():
                 
         Message.send_multicast(m_answer)
         
+    def __send_request_value_message(self, timeout: int) -> None:
+        """
+        Requisita um valor para todos os outros servidores
+
+        Args:
+            timeout (int): tempo em que a mesagem será difundida pelo sistema
+        """
         
-    def __handle_leader_search_message(self, m: bytes) -> None:
+        logger.info(f"🔢 Servidor {self._process_id} requisita os valores computados pelos outros servidores")
+        
+        with self._send_request_value_lock:
+            self._is_send_request_value = True
+        
+        time.sleep(timeout)
+        
+        with self._send_request_value_lock:
+            self._is_send_request_value = False
+        
+    
+    def __diffusion_send_LEADER_SEARCH(self):
+        search: bool = False
+        with self._send_leader_search_message_lock:
+            search = self._is_send_leader_search_message
+            
+        if search:
+            self.__send_LEADER_SEARCH()
+        
+    def __handle_leader_search_message(self, m: dict) -> None:
         """
         Processa as mensagens recebidas sobre o serviço de pesquisa de líder 
 
@@ -195,8 +239,8 @@ class Node():
             
             with self._send_leader_search_message_lock:
                 self._is_send_leader_search_message = False
-        
-        
+                
+                
     def __handle_message(self, message: dict) -> None:
         """
         Processa as mensagens recebidas pela camada de transporte
@@ -209,23 +253,17 @@ class Node():
         if message.get("sender_id") == self._process_id:
             return
         
+        
         self._df.handle_df_message(message)
         self.__handle_leader_search_message(message)
         
-        search: bool = False
-        with self._send_leader_search_message_lock:
-            search = self._is_send_leader_search_message
+        self.__diffusion_send_LEADER_SEARCH()
             
-        if search:
-            self.__send_LEADER_SEARCH()
-            time.sleep(2)
-        
-        
         self._ele.handle_election_message(message)
         
         # Put consensus-related messages in the queue for the leader to process
         if message.get("type") in [
-            MessageEnum.BIZANTINE_PROPOSE.value,
+            MessageEnum.BIZANTINE_START.value,
             MessageEnum.BIZANTINE_VOTE.value,
             MessageEnum.BIZANTINE_DECIDE.value,
         ]:
@@ -243,25 +281,21 @@ class Node():
         
     # MAIN THREAD 
     
-    def __main_node_loop_thread(self, leader_task) -> None:   
+    def __main_node_loop_thread(self) -> None:   
         self.__send_leader_search_message(2)
-        leader_task_thread = None
         while True:
             try:
                 if self.__num_active_processes() >= 1:
                     if not self.__leader_is_active():  
                         self._ele.set_leader(None)
                         self._ele.start()
-                        leader_task_thread = None
                     else:
                         logger.info(f"🫡 Nó {self._ele.get_leader()} é o atual líder")
-                        if self._ele.is_leader() and leader_task and (leader_task_thread is None or not leader_task_thread.is_alive()):
-                            leader_task_thread = threading.Thread(target=leader_task)
-                            leader_task_thread.daemon = True
-                            leader_task_thread.start()
+                        if self._ele.is_leader():
+                            self.consensus_module.run_leader_consensus()
+                
                 else:
                     self._ele.set_leader(None)
-                    leader_task_thread = None
             except Exception as e:
                 print(f"error: {e}")
                 logger.warning(f"⚠️ Detector de falhas não foi iniciado, não é possível iniciar a tarefa do Servidor")
@@ -270,7 +304,7 @@ class Node():
                 
     # Métodos para o APP
 
-    def init_node(self, leader_task) -> None:
+    def init_node(self) -> None:
         # Inicia o detector de falhas
         self._df = DF(
             d=self._df_d,
@@ -279,7 +313,7 @@ class Node():
             processes_list=self._processes_id
         )
         
-        self._main_thread = threading.Thread(target=self.__main_node_loop_thread, args=(leader_task,))
+        self._main_thread = threading.Thread(target=self.__main_node_loop_thread)
         self._listen_thread = threading.Thread(target=self.__listen_thread)
         
         self.__main_thread_start()

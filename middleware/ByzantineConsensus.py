@@ -13,15 +13,17 @@ class ByzantineConsensus:
         """
         Leader starts consensus round, collects votes, and broadcasts the consensus value.
         """
-        # Leader just triggers the round
+        self.node.round += 1
+
         m = message(
-            message_enum=MessageEnum.BIZANTINE_PROPOSE,
+            message_enum=MessageEnum.BIZANTINE_START,
             sender_id=self.node._process_id,
-            payload="START"
+            payload=str(self.node.round)
         )
         Message.send_multicast(m)
 
-        self.votes = {self.node._process_id: self.node.get_vote_value()}
+        self.votes = {self.node._process_id: self.node.get_node_vote()}
+
         start_time = time.time()
         timeout = 3  # seconds
         while time.time() - start_time < timeout:
@@ -29,7 +31,10 @@ class ByzantineConsensus:
                 msg = self.node._message_queue.get(timeout=timeout - (time.time() - start_time))
                 if msg.get("type") == MessageEnum.BIZANTINE_VOTE.value:
                     sender = int(msg["sender_id"])
-                    vote = int(msg["payload"])
+                    vote = int(msg["payload"].split(":")[1])  # Extract the vote from the payload
+                    if sender not in self.votes and msg["payload"] == self.node.round:  # Avoid overwriting existing votes
+                        self.node.logger.info(f"[BIZANTINE] Node {self.node._process_id} received vote from {sender}: {vote}")
+                    # Store the vote in the votes dictionary
                     self.votes[sender] = vote
             except queue.Empty:
                 break
@@ -46,12 +51,11 @@ class ByzantineConsensus:
         return consensus_value
 
     def handle_message(self, msg):
-        if msg.get("type") == MessageEnum.BIZANTINE_PROPOSE.value:
-            # Each node asks its App/Node for the vote value
+        if msg.get("type") == MessageEnum.BIZANTINE_START.value:
             m = message(
                 message_enum=MessageEnum.BIZANTINE_VOTE,
                 sender_id=self.node._process_id,
-                payload=str(self.node.get_vote_value())
+                payload=str(f"{msg["payload"]}:{self.node.get_node_vote()}")
             )
             Message.send_multicast(m)
         elif msg.get("type") == MessageEnum.BIZANTINE_DECIDE.value:
