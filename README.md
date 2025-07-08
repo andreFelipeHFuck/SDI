@@ -8,9 +8,9 @@ Trabalho final da disciplina de SDI (Sistemas Distribuídos) com o objetivo de a
 
 ## Instalação:
 
-Para fazer a instalação do sitema primeiramente baixe o reposítorio do trabalho.
+Para fazer a instalação do sistema primeiramente baixe o repositório do trabalho.
 
-Crie uma máquina virtual python dentro do reposítorio:
+Crie uma máquina virtual Python dentro do repositório:
 
 ```sh
 $ python -m venv .venv
@@ -29,4 +29,12 @@ Instale as dependências do projeto:
 $ pip install -r requirements.txt
 ```
 
-## Execução do trabalho
+## Execução do trabalho:
+
+Para executar um Servidor individual do sistema, execute o seguinte comando:
+
+```sh
+$ python3 main.py --id <ID>
+````
+
+Onde <ID> é o identificador único de cada Servidor, não podendo ter ID repetidos no sistema.
