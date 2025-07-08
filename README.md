@@ -13,7 +13,7 @@ Para fazer a instalação do sistema primeiramente baixe o repositório do traba
 Crie uma máquina virtual Python dentro do repositório:
 
 ```sh
-$ python -m venv .venv
+$ python3 -m venv .venv
 ```
 
 Inicie a máquina virtual:
