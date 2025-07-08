@@ -52,6 +52,10 @@ class ByzantineConsensus:
 
     def handle_message(self, msg):
         if msg.get("type") == MessageEnum.BIZANTINE_START.value:
+            if(int(msg["payload"]) > self.node.round):
+                self.node.round = int(msg["payload"])
+                self.node.logger.info(f"[BIZANTINE] Node {self.node._process_id} updated round to {self.node.round}")
+
             m = message(
                 message_enum=MessageEnum.BIZANTINE_VOTE,
                 sender_id=self.node._process_id,
