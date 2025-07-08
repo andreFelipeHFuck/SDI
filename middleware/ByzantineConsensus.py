@@ -21,7 +21,8 @@ class ByzantineConsensus:
         )
         Message.send_multicast(m)
 
-        self.votes = {self.node._process_id: i * i * self.node._process_id}
+        self.votes = {self.node._process_id: self.node.get_node_vote()}
+
         start_time = time.time()
         timeout = 3  # seconds
         while time.time() - start_time < timeout:
@@ -49,11 +50,10 @@ class ByzantineConsensus:
     def handle_message(self, msg):
         if msg.get("type") == MessageEnum.BIZANTINE_PROPOSE.value:
             proposal = int(msg["payload"])
-            vote = proposal * proposal * self.node._process_id
             m = message(
                 message_enum=MessageEnum.BIZANTINE_VOTE,
                 sender_id=self.node._process_id,
-                payload=str(vote)
+                payload=str(self.node.get_node_vote())
             )
             Message.send_multicast(m)
         elif msg.get("type") == MessageEnum.BIZANTINE_DECIDE.value:

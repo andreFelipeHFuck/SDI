@@ -28,7 +28,6 @@ class Node():
         
         # Eliminas as falhas bizatinas
         assert(process_id in processes_id)
-
         
         self._process_id: int = process_id
         self._processes_id: list[int] = [id for id in processes_id if id != self._process_id]
@@ -72,6 +71,19 @@ class Node():
      
      
     # Métodos internos do Node
+
+    def get_node_vote(self) -> int:
+        """
+        Retorna o voto do nó atual, que é o produto do quadrado do id do nó com o id do nó
+
+        Returns:
+            int: voto do nó atual
+        """
+        i = randint(1, 100)
+        vote_value = i * i * self._process_id
+
+        logger.info(f"🔢 Servidor {self._process_id} gera o número {i} para o consenso, com total = {vote_value}")
+        return vote_value
     
     def __num_active_processes(self) -> int:
         """
@@ -174,34 +186,6 @@ class Node():
                 
         Message.send_multicast(m_answer)
         
-        
-    def __send_REQUEST_VALUE(self) -> None:
-        m_answer: bytes = message(
-            message_enum=MessageEnum.REQUEST_VALUE,
-            sender_id=self._process_id,
-            payload="REQUEST_VALUE"
-        )
-                
-        Message.send_multicast(m_answer)
-        
-    
-    def __send_ANSWER_VALUE(self, value: int) -> None:
-        """
-        Retorna o valor da mensagem com o valores pedidos pelo Servidor líder
-
-        Args:
-            value (tuple[int, int]): valor de round e outro valor da aplicação
-        """
-        
-        m_answer: bytes = message(
-            message_enum=MessageEnum.ANSWER_VALUE,
-            sender_id=self._process_id,
-            payload=f"ANSWER_VALUE:{self._round}:{value}"
-        )
-                
-        Message.send_multicast(m_answer)
-        
-        
     def __send_request_value_message(self, timeout: int) -> None:
         """
         Requisita um valor para todos os outros servidores
@@ -228,16 +212,6 @@ class Node():
             
         if search:
             self.__send_LEADER_SEARCH()
-            
-    
-    def __diffusion_send_REQUEST_VALUE(self):
-        request: bool = False
-        with self._send_request_value_lock:
-            request = self._is_send_request_value
-            
-        if request:
-            self.__send_REQUEST_VALUE()    
-        
         
     def __handle_leader_search_message(self, m: dict) -> None:
         """
@@ -284,8 +258,6 @@ class Node():
         self.__handle_leader_search_message(message)
         
         self.__diffusion_send_LEADER_SEARCH()
-        self.__diffusion_send_REQUEST_VALUE()
-            
             
         self._ele.handle_election_message(message)
         
@@ -309,24 +281,21 @@ class Node():
         
     # MAIN THREAD 
     
-    def __main_node_loop_thread(self, leader_task) -> None:   
+    def __main_node_loop_thread(self) -> None:   
         self.__send_leader_search_message(2)
-        leader_task_thread = None
         while True:
             try:
                 if self.__num_active_processes() >= 1:
                     if not self.__leader_is_active():  
                         self._ele.set_leader(None)
                         self._ele.start()
-                        leader_task_thread = None
                     else:
                         logger.info(f"🫡 Nó {self._ele.get_leader()} é o atual líder")
                         if self._ele.is_leader():
-                            self.__send_request_value_message(2)
+                            self.consensus_module.run_leader_consensus()
                 
                 else:
                     self._ele.set_leader(None)
-                    leader_task_thread = None
             except Exception as e:
                 print(f"error: {e}")
                 logger.warning(f"⚠️ Detctor de falhas não foi iniciado, não é possível iniciar a tarefa do Servidor")
@@ -335,7 +304,7 @@ class Node():
                 
     # Métodos para o APP
 
-    def init_node(self, leader_task) -> None:
+    def init_node(self) -> None:
         # Inicia o detector de falhas
         self._df = DF(
             d=self._df_d,
@@ -344,7 +313,7 @@ class Node():
             processes_list=self._processes_id
         )
         
-        self._main_thread = threading.Thread(target=self.__main_node_loop_thread, args=(leader_task,))
+        self._main_thread = threading.Thread(target=self.__main_node_loop_thread)
         self._listen_thread = threading.Thread(target=self.__listen_thread)
         
         self.__main_thread_start()
